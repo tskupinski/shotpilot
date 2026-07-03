@@ -22,6 +22,26 @@ SMOOTH_CACHE = paths.SMOOTH_CACHE
 
 UNIFORM_KEYS = ("codec_name", "width", "height", "pix_fmt", "r_frame_rate")
 
+# Selects are cut ONCE (cut.X264_ARGS, preset medium); the montage is re-rendered
+# on every order iteration, so it trades a few % of file size for ~1.5-2× encode
+# speed (preset fast). Same crf 18 — still above typical drone source bitrate.
+MONTAGE_X264_ARGS = [
+    "-c:v", "libx264", "-crf", "18", "-preset", "fast",
+    "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+]
+
+
+def draft_args() -> list[str]:
+    """Encoder for `--draft` preview renders: hardware (VideoToolbox) when the
+    build has it, otherwise the fastest reasonable software preset. Quality is
+    for order/transition review, not publishing — the final render re-encodes
+    with MONTAGE_X264_ARGS."""
+    if ffmpeg.has_encoder("h264_videotoolbox"):
+        return ["-c:v", "h264_videotoolbox", "-b:v", "50M",
+                "-pix_fmt", "yuv420p", "-movflags", "+faststart"]
+    return ["-c:v", "libx264", "-crf", "23", "-preset", "veryfast",
+            "-pix_fmt", "yuv420p", "-movflags", "+faststart"]
+
 # Narrative roles of a clip (tags.role) — closed vocabulary; single source:
 # pipeline/schemas/project.schema.json ($defs.tags), criteria in decision-rules.md.
 ROLES = schema.tag_enum("role")
@@ -57,23 +77,29 @@ def fps_value(rate: str | None) -> float:
     return float(rate)
 
 
-def target_fps(files: list[Path]) -> str:
-    """Highest r_frame_rate in the set — normalizing upward loses no frames."""
-    return max((stream_fields(f).get("r_frame_rate") for f in files),
+def target_fps(files: list[Path], fields: list[dict] | None = None) -> str:
+    """Highest r_frame_rate in the set — normalizing upward loses no frames.
+
+    `fields` = precomputed `stream_fields` per file (one ffprobe pass shared by
+    the caller instead of every helper probing the same files again).
+    """
+    fields = fields or [stream_fields(f) for f in files]
+    return max((x.get("r_frame_rate") for x in fields),
                key=fps_value, default="30000/1001")
 
 
-def check_uniform(files: list[Path], keys: tuple[str, ...] = UNIFORM_KEYS) -> list[dict]:
+def check_uniform(files: list[Path], keys: tuple[str, ...] = UNIFORM_KEYS,
+                  fields: list[dict] | None = None) -> list[dict]:
     """Compares clips against the first; returns a list of mismatches (empty = OK).
 
     `keys` narrows the checked fields: the xfade path (re-encode) normalizes fps
     on the fly, so it skips `r_frame_rate`; the concat path (stream copy) requires
-    full uniformity, because it does not recompute frames.
+    full uniformity, because it does not recompute frames. `fields` as in `target_fps`.
     """
-    ref = stream_fields(files[0])
+    fields = fields or [stream_fields(f) for f in files]
+    ref = fields[0]
     mismatches = []
-    for f in files[1:]:
-        cur = stream_fields(f)
+    for f, cur in zip(files[1:], fields[1:]):
         for key in keys:
             if cur.get(key) != ref.get(key):
                 mismatches.append({"file": str(f), "field": key,
@@ -133,7 +159,8 @@ def clip_starts(durations: list[float], xfade: float) -> list[float]:
 
 
 def concat_xfade(files: list[Path], out: Path, duration: float,
-                 smooth: bool = False) -> Path:
+                 smooth: bool = False, fields: list[dict] | None = None,
+                 encode: list[str] | None = None) -> Path:
     """Splice with crossfade transitions (xfade chain, re-encode of the whole).
 
     A re-encode happens anyway, so we normalize every input to a common fps
@@ -148,13 +175,16 @@ def concat_xfade(files: list[Path], out: Path, duration: float,
     the judder from frame duplication (23.976→29.97) WITHOUT putting
     minterpolate into the big graph (which allocated tens of GB → OOM). The
     montage itself then has the same memory profile as the non-smooth version.
+
+    `fields` as in `target_fps`; `encode` overrides the output encoder args
+    (default MONTAGE_X264_ARGS; `draft_args()` for preview renders).
     """
     if len(files) < 2:
         return concat(files, out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    fields = [stream_fields(f) for f in files]
+    fields = fields or [stream_fields(f) for f in files]
     durs = [float(x["duration"]) for x in fields]
-    fps = target_fps(files)
+    fps = target_fps(files, fields)
 
     work = list(files)
     if smooth:
@@ -173,7 +203,8 @@ def concat_xfade(files: list[Path], out: Path, duration: float,
                      f"duration={duration:.3f}:offset={starts[i]:.3f}[v{i}]")
     inputs = [a for f in work for a in ("-i", str(f))]
     return ffmpeg.run_to([*inputs, "-filter_complex", ";".join(parts),
-                          "-map", f"[v{len(work) - 1}]", "-an", *X264_ARGS], out)
+                          "-map", f"[v{len(work) - 1}]", "-an",
+                          *(encode or MONTAGE_X264_ARGS)], out)
 
 
 def resolve_use(path: str, selects: list[dict]) -> dict | None:
@@ -269,7 +300,10 @@ def render_state(montage: dict) -> dict:
             return {"state": STATE_STALE, "reason": f"missing file: {f}"}
         if p.stat().st_mtime > rendered_at:
             return {"state": STATE_STALE, "reason": f"clip changed after render: {f}"}
-    return {"state": STATE_FRESH}
+    state = {"state": STATE_FRESH}
+    if render.get("draft"):
+        state["draft"] = True  # fresh, but preview quality (--draft encode)
+    return state
 
 
 def music_state(montage: dict) -> dict:

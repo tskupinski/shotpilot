@@ -123,18 +123,33 @@ $VM sequence --json 2>/dev/null \
     | assert_json "any(w['type']=='rejected_clip' for w in d['warnings']) and any(r['file'].endswith('smoke2.mp4') for r in d['rejected'])"
 $VM tag "$SEL2" --unreject >/dev/null 2>&1
 
-echo "[9/16] montage (draft --xfade 0 + default crossfade + --smooth)" >&2
+echo "[9/16] montage (draft --xfade 0 + crossfade + --smooth + skip/--force + --draft)" >&2
 $VM montage --out "$MONT" --xfade 0 --json 2>/dev/null \
     | assert_json "abs(d['duration'] - 7.5) < 0.5 and d['clips'] == 2 and d['xfade'] == 0 and d['smooth'] is False"
 [ -f "$MONT" ] || fail "montage file missing"
-$VM montage --out "$MONT" --xfade 0 --smooth --json 2>/dev/null \
-    | assert_json "d['smooth'] is False"   # --smooth skipped for stream copy
+# identical fresh render -> skipped without touching ffprobe/ffmpeg
+$VM montage --out "$MONT" --xfade 0 --json 2>/dev/null \
+    | assert_json "d.get('skipped') is True and d['xfade'] == 0"
+$VM montage --out "$MONT" --xfade 0 --smooth --force --json 2>/dev/null \
+    | assert_json "d['smooth'] is False and 'skipped' not in d"   # --smooth skipped for stream copy
 $VM montage --out "$MONT" --xfade 1.3 2>/dev/null \
     && fail "montage did not refuse with a clip shorter than 2x the transition" || true
 $VM montage --out "$MONT" --json 2>/dev/null \
     | assert_json "abs(d['duration'] - 6.5) < 0.5 and d['clips'] == 2 and d['xfade'] == 1.0"
 $VM montage --out "$MONT" --smooth --json 2>/dev/null \
     | assert_json "d['smooth'] is True and abs(d['duration'] - 6.5) < 0.5 and d['clips'] == 2"
+# smooth render fresh -> skip; --force re-renders
+$VM montage --out "$MONT" --smooth --json 2>/dev/null \
+    | assert_json "d.get('skipped') is True and d['smooth'] is True"
+$VM montage --out "$MONT" --smooth --force --json 2>/dev/null \
+    | assert_json "'skipped' not in d and d['smooth'] is True"
+# --draft: preview encode, marked in the record/status; never satisfies a final request
+$VM montage --out "$MONT" --draft --json 2>/dev/null \
+    | assert_json "d['draft'] is True and abs(d['duration'] - 6.5) < 0.5"
+$VM status --json 2>/dev/null \
+    | assert_json "d['cuts']['main']['render'].get('draft') is True"
+$VM montage --out "$MONT" --json 2>/dev/null \
+    | assert_json "d['draft'] is False and 'skipped' not in d"
 # named cut: own sequence + render to output/cuts/, main record untouched
 $VM sequence --cut smoke-alt "$SELX2" "$SEL2" --json 2>/dev/null \
     | assert_json "d['cut'] == 'smoke-alt' and len(d['sequence']) == 2"
@@ -188,6 +203,11 @@ echo "[11/16] music (probe + mux + loop + staleness)" >&2
 ffmpeg -nostdin -y -v error -f lavfi -i "sine=frequency=440:duration=12" "$MUSIC"
 $VM music --probe "$MUSIC" --json 2>/dev/null \
     | assert_json "abs(d['results'][0]['duration_s'] - 12) < 0.2 and d['results'][0]['energy'] and d['results'][0]['integrated_lufs'] is not None"
+# a --draft render blocks the mux (preview quality) until a final render
+# (--force: a fresh FINAL render otherwise satisfies the --draft request = skip)
+$VM montage --out "$MONT" --draft --force >/dev/null 2>&1 || fail "draft render before music failed"
+$VM music "$MUSIC" --out "$FINAL" 2>/dev/null && fail "music muxed onto a --draft render" || true
+$VM montage --out "$MONT" >/dev/null 2>&1 || fail "final render after draft failed"
 $VM music "$MUSIC" --out "$FINAL" --json 2>/dev/null \
     | assert_json "abs(d['video_s'] - 6.5) < 0.5 and d['audio_s'] <= d['video_s'] + 0.1 and not d['looped']"
 [ -f "$FINAL" ] || fail "final file missing"

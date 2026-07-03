@@ -134,8 +134,9 @@ def cmd_status(args) -> int:
         seq_disp = (f"{c['sequence_s']} s / target {target:g} s" if target
                     else f"{c['sequence_s']} s")
         label = "Montage" if name == "main" else f"Montage [{name}]"
+        draft = " (draft)" if r.get("draft") else ""
         lines.append(f"{label}: {c['sequence_len']} clips in sequence ({seq_disp}), "
-                     f"render: {r['state']}{reason}")
+                     f"render: {r['state']}{draft}{reason}")
         if c["notes"]:
             lines.append(f"  note: {c['notes']}")
         mus = c["music"]
@@ -557,13 +558,15 @@ def cmd_montage(args) -> int:
         log("--xfade cannot be negative")
         return 1
     external = bool(args.files)
+    mont = {}
     if external:
         if not args.out:
             log("--files requires --out (so the cut's render is not overwritten)")
             return 1
         files = list(args.files)
     else:
-        seq = manifest.get_cut(manifest.load(), args.cut).get("sequence", [])
+        mont = manifest.get_cut(manifest.load(), args.cut)
+        seq = mont.get("sequence", [])
         if not seq:
             log(f"cut \"{args.cut}\" sequence is empty — `vm sequence --cut {args.cut} "
                 f"FILE...` or provide `--files CLIP...`")
@@ -575,18 +578,40 @@ def cmd_montage(args) -> int:
             log(f"missing file: {m}")
         return 1
     xfade = args.xfade if len(files) > 1 else 0.0
+    smooth = args.smooth and xfade > 0
+    draft = args.draft and xfade > 0
+    out = args.out or paths.cut_render(args.cut)
+    # Identical render already recorded and fresh -> skip (before any ffprobe).
+    # Matching a non-draft record also satisfies a --draft request (the final
+    # render is strictly better); the reverse never skips.
+    rec = mont.get("render") or {}
+    if (not external and not args.force
+            and montage_mod.render_state(mont)["state"] == montage_mod.STATE_FRESH
+            and rec.get("out") == str(out)
+            and rec.get("xfade_s") == xfade
+            and bool(rec.get("smooth")) == smooth
+            and (not rec.get("draft") or draft)):
+        emit({"out": rec["out"], "clips": rec["clips"], "xfade": xfade,
+              "smooth": bool(rec.get("smooth")), "draft": bool(rec.get("draft")),
+              "duration": rec.get("duration_s"), "expected": rec.get("expected_s"),
+              "skipped": True, "render_state": montage_mod.STATE_FRESH},
+             args.json,
+             f"render up to date: {rec['out']} ({rec['clips']} clips, "
+             f"{rec.get('duration_s')} s) — `--force` re-renders")
+        return 0
     # xfade re-encodes and normalizes fps on the fly -> skip r_frame_rate in the check;
     # concat (--xfade 0) is stream copy, so it requires full uniformity (fps too).
+    fields = [montage_mod.stream_fields(f) for f in files]
     check_keys = (montage_mod.UNIFORM_KEYS if xfade == 0
                   else tuple(k for k in montage_mod.UNIFORM_KEYS if k != "r_frame_rate"))
-    mismatches = montage_mod.check_uniform(files, check_keys)
+    mismatches = montage_mod.check_uniform(files, check_keys, fields)
     if mismatches:
         for mm in mismatches:
             log(f"non-uniform clip: {mm['file']} — {mm['field']}={mm['value']} "
                 f"(expected {mm['expected']})")
         log("fix by re-rendering the clip (vm select / vm speed) — do not force the splice")
         return 1
-    durs = [float(montage_mod.stream_fields(f).get("duration", 0)) for f in files]
+    durs = [float(x.get("duration", 0)) for x in fields]
     if xfade > 0:
         too_short = [(f, d) for f, d in zip(files, durs) if d <= 2 * xfade]
         if too_short:
@@ -595,20 +620,26 @@ def cmd_montage(args) -> int:
             log("shorten the transition (--xfade) or lengthen/replace the clip")
             return 1
     expected = sum(durs) - (len(files) - 1) * xfade
-    out = args.out or paths.cut_render(args.cut)
-    smooth = args.smooth and xfade > 0
     if args.smooth and xfade == 0:
         log("--smooth skipped: --xfade 0 is stream copy (no re-encode, "
             "no interpolation)")
+    if args.draft and xfade == 0:
+        log("--draft skipped: --xfade 0 is stream copy already (no re-encode)")
     if xfade > 0:
+        encode = montage_mod.draft_args() if draft else None
         if smooth:
             log(f"Splicing {len(files)} clips with crossfade {xfade:g} s + motion "
                 f"interpolation (--smooth) -> {out} (re-encode + minterpolate on clips "
                 f"with a different fps — MUCH slower, expect hours for long footage) ...")
+        elif draft:
+            log(f"Splicing {len(files)} clips with crossfade {xfade:g} s -> {out} "
+                f"(DRAFT encode: {encode[1]} — preview quality, re-render without "
+                f"--draft before music/publish) ...")
         else:
             log(f"Splicing {len(files)} clips with crossfade {xfade:g} s -> {out} "
                 f"(re-encode, ~{expected * 4 / 60:.0f} min) ...")
-        montage_mod.concat_xfade(files, out, xfade, smooth=smooth)
+        montage_mod.concat_xfade(files, out, xfade, smooth=smooth,
+                                 fields=fields, encode=encode)
     else:
         log(f"Splicing {len(files)} clips (hard cuts, no re-encode) -> {out} ...")
         montage_mod.concat(files, out)
@@ -629,16 +660,18 @@ def cmd_montage(args) -> int:
         return 1
     if not external:
         manifest.record_render({"out": str(out), "clips": len(files),
-                                "xfade_s": xfade,
+                                "xfade_s": xfade, "smooth": smooth, "draft": draft,
                                 "expected_s": round(expected, 2),
                                 "duration_s": round(out_info.duration, 2),
                                 "clip_durations_s": [round(d, 3) for d in durs],
                                 "files": [str(f) for f in files]},
                                cut=args.cut)
     human = (f"{out} ({len(files)} clips, {out_info.duration:.1f} s, "
-             f"crossfade {xfade:g} s{', smooth' if smooth else ''})" if xfade > 0 else
+             f"crossfade {xfade:g} s{', smooth' if smooth else ''}"
+             f"{', DRAFT' if draft else ''})" if xfade > 0 else
              f"{out} ({len(files)} clips, {out_info.duration:.1f} s, hard cuts)")
     emit({"out": str(out), "clips": len(files), "xfade": xfade, "smooth": smooth,
+          "draft": draft,
           "duration": round(out_info.duration, 2), "expected": round(expected, 2),
           "render_state": (montage_mod.STATE_EXTERNAL if external
                            else montage_mod.STATE_FRESH)},
@@ -666,9 +699,10 @@ def cmd_smooth(args) -> int:
         for m in missing:
             log(f"missing file: {m}")
         return 1
-    fps = args.fps or montage_mod.target_fps(files)
-    todo = [f for f in files
-            if montage_mod.stream_fields(f).get("r_frame_rate") != fps]
+    fields = [montage_mod.stream_fields(f) for f in files]
+    fps = args.fps or montage_mod.target_fps(files, fields)
+    todo = [f for f, x in zip(files, fields)
+            if x.get("r_frame_rate") != fps]
     smoothed = []
     for n, f in enumerate(todo, 1):
         log(f"  smoothing {n}/{len(todo)}: {f.name} ...")
@@ -779,6 +813,11 @@ def _music_apply(args, tracks: list[Path]) -> int:
         reason = f" ({rstate['reason']})" if rstate.get("reason") else ""
         log(f"cut \"{args.cut}\" render: {rstate['state']}{reason} — first run "
             f"`vm montage{'' if args.cut == 'main' else f' --cut {args.cut}'}`")
+        return 1
+    if rstate.get("draft"):
+        log(f"cut \"{args.cut}\" render is a --draft preview — render the final "
+            f"`vm montage{'' if args.cut == 'main' else f' --cut {args.cut}'}` "
+            f"before muxing music")
         return 1
     video = Path(mont["render"]["out"])
     out = args.out or paths.cut_final(args.cut)
@@ -1235,6 +1274,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--smooth", action="store_true",
                     help="motion interpolation (minterpolate) for clips with fps other than "
                          "target — removes mixed-frame-rate judder; much slower render")
+    sp.add_argument("--draft", action="store_true",
+                    help="fast preview encode of the crossfade render (hardware encoder "
+                         "when available) — for order iterations; re-render without "
+                         "--draft before music/publish")
+    sp.add_argument("--force", action="store_true",
+                    help="re-render even when the recorded render is fresh and matches "
+                         "the requested parameters")
     sp.add_argument("--files", nargs="*", type=Path, default=[], metavar="CLIP",
                     help="render an explicit clip list to --out (external version, does "
                          "not touch the manifest); check the timeline via `vm locate --files`")

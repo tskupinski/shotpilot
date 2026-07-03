@@ -41,6 +41,8 @@ from `./vm <command> --help`**, not from memory; decision criteria from
 ./vm sequence ...     # montage order (the files ACTUALLY spliced) + lint; --target SEC;
                       # --note/--append-note = persistent cut decision note; no args: preview
 ./vm montage          # splice the sequence (crossfade = re-encode; --xfade 0 = stream-copy draft;
+                      # --draft = fast preview encode with transitions; a fresh matching
+                      # render is skipped (--force re-renders);
                       # --smooth = mixed-frame-rate interpolation; --files + --out = one-off
                       # ad-hoc render without touching the manifest)
 ./vm smooth [CLIP...] # warm the interpolation cache in the background BEFORE the final `vm montage --smooth`

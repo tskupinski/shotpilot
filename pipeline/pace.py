@@ -94,6 +94,7 @@ def recommend_speed(total: float, target: float, max_speed: float) -> float:
 def apply_speed(info: VideoInfo, speed: float, out: Path) -> Path:
     """Re-encode with setpts; audio dropped (footage is edited with music)."""
     return ffmpeg.run_to([
+        *ffmpeg.HWACCEL,
         "-i", info.path,
         "-vf", f"setpts=PTS/{speed:g}",
         "-an", *X264_ARGS,

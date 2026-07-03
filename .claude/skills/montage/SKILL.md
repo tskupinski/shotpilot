@@ -131,6 +131,8 @@ exists only in the chat and is lost between sessions.
 ```sh
 ./vm montage              # -> output/cuts/main.mp4 (crossfade, re-encode)
 ./vm montage --xfade 0    # draft: hard cuts, concat without re-encode (seconds)
+./vm montage --draft      # preview WITH transitions: fast encode (hardware when
+                          # available) — status shows "draft", music mux refuses it
 ./vm montage --smooth     # final render: motion interpolation (mixed frame rates)
 ```
 
@@ -142,7 +144,10 @@ exists only in the chat and is lost between sessions.
   start `vm smooth` in the background already while iterating on the ordering (cache
   mechanics: the rules, section "Mixed frame rates and `--smooth`").
 - `--xfade 0` (stream copy, seconds, foreground) is for drafts while
-  iterating on the ordering — the final render always with transitions.
+  iterating on the ordering; `--draft` (fast preview encode) when the seams and
+  transitions themselves need watching — the final render always a plain
+  `vm montage` (full quality, without `--draft`). A repeat with an unchanged
+  sequence and parameters is skipped as already fresh (`--force` re-renders).
 - The command itself checks clip uniformity and the output duration; on "non-uniform
   clip" → re-render the faulty clip, don't work around it. On "clip too short
   for transitions" → a shorter `--xfade` or a decision about the clip (trim/variant).

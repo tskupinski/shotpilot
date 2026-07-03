@@ -178,6 +178,13 @@ Crossfade between all adjacent clips; a single length for the whole film.
   of the clips minus (n−1)×xfade; account for this when computing durations in trim review.
 - **`--xfade 0` for drafts only** (order iteration — concat without re-encode,
   seconds); the final render always with transitions.
+- **`--draft` for preview renders WITH transitions** — fast encode (hardware
+  when available), several times faster than the final render; use it when the
+  ordering is settled but the transitions/seams still need watching. Preview
+  quality: the render is marked `draft` in the manifest (status shows it,
+  music mux refuses it) — the accepted version gets a final `vm montage`.
+  A repeated `vm montage` with an unchanged sequence and parameters is skipped
+  (render already fresh) — `--force` re-renders anyway.
 - **Montage transition clips** (clips flying into fog/white) — still reserve them for
   seams between acts — crossfade doesn't replace a natural seam, it only softens the cuts.
 

@@ -16,6 +16,7 @@ X264_ARGS = [
 
 def cut_range(info: VideoInfo, start: float, end: float, out: Path) -> Path:
     return ffmpeg.run_to([
+        *ffmpeg.HWACCEL,
         "-ss", f"{start:.3f}", "-i", info.path,
         "-t", f"{end - start:.3f}",
         *X264_ARGS,

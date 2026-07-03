@@ -90,6 +90,8 @@
         "out": {"type": "string"},
         "clips": {"type": "integer", "minimum": 1},
         "xfade_s": {"type": "number", "minimum": 0},
+        "smooth": {"type": "boolean"},
+        "draft": {"$comment": "true = preview-quality encode (vm montage --draft); music mux refuses it, status shows it", "type": "boolean"},
         "expected_s": {"type": "number"},
         "duration_s": {"type": "number"},
         "clip_durations_s": {"type": "array", "items": {"type": "number"}},

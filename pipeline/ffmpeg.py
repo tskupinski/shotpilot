@@ -8,9 +8,28 @@ loudness analysis (`music.probe_track` — parses stderr, so no `-v error`)
 and the rawvideo pipe for motion analysis (`motion._frame_pipe` — streaming Popen).
 """
 
+import functools
 import json
 import subprocess
+import sys
 from pathlib import Path
+
+# Hardware decode of inputs (input option — goes BEFORE -i). Best effort:
+# when the accelerator can't handle a stream, ffmpeg falls back to software
+# decode on its own. Matters for re-encodes reading 4K sources (select/trim/
+# speed); NOT used in the montage xfade graph — dozens of simultaneous
+# hardware decode sessions are the risk there, not the win.
+HWACCEL = ["-hwaccel", "videotoolbox"] if sys.platform == "darwin" else []
+
+
+@functools.lru_cache(maxsize=None)
+def has_encoder(name: str) -> bool:
+    """True when this ffmpeg build lists the encoder (`ffmpeg -encoders`)."""
+    res = subprocess.run(["ffmpeg", "-hide_banner", "-encoders"],
+                         stdin=subprocess.DEVNULL, capture_output=True, text=True)
+    if res.returncode != 0:
+        return False
+    return any(line.split()[1:2] == [name] for line in res.stdout.splitlines())
 
 
 def run(args: list, capture: bool = False) -> subprocess.CompletedProcess:
