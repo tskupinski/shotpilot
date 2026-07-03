@@ -1,0 +1,26 @@
+[project]
+name = "shotpilot"
+version = "0.1.0"
+description = "Agent-first pipeline from drone footage to an edited film: smoothness analysis, shot selection, pacing, montage, AI music and YouTube publishing assets"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "Tomasz Skupiński" }]
+keywords = ["drone", "video", "editing", "ffmpeg", "opencv", "agent", "claude-code"]
+classifiers = [
+    "Environment :: Console",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Video",
+]
+dependencies = [
+    "opencv-python>=4.10",
+    "numpy>=2.0",
+    "matplotlib>=3.9",
+    "Pillow>=10.0",
+]
+
+[tool.setuptools]
+packages = ["pipeline"]

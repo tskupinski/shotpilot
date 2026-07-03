@@ -1,0 +1,13 @@
+input/*
+!input/.gitkeep
+output/*
+!output/.gitkeep
+archive/
+.venv/
+.env
+config.json
+publish-template.txt
+CLAUDE.local.md
+__pycache__/
+.claude/scheduled_tasks.lock
+.DS_Store
