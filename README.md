@@ -13,6 +13,16 @@ generated review images, applies the codified decision rules and asks when
 a call is genuinely the human's to make. Everything also works by hand — the CLI
 is a normal command-line tool with `--json` output.
 
+## Example
+
+A film made end-to-end with this pipeline — selection, pacing, montage with
+crossfades and the YouTube publishing assets were all driven by the agent
+through the CLI:
+
+[![Pruszków, WKD Komorów — 4K DJI Mini 3 Drone Video](https://img.youtube.com/vi/jn8GxruFrVQ/maxresdefault.jpg)](https://www.youtube.com/watch?v=jn8GxruFrVQ)
+
+*[Pruszków, WKD Komorów — 4K DJI Mini 3 Drone Video](https://www.youtube.com/watch?v=jn8GxruFrVQ)*
+
 ## Heads up before you start
 
 - **Early days.** This is the beginning of the project, and it has been largely
