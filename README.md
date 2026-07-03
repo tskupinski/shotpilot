@@ -13,6 +13,23 @@ generated review images, applies the codified decision rules and asks when
 a call is genuinely the human's to make. Everything also works by hand — the CLI
 is a normal command-line tool with `--json` output.
 
+## Heads up before you start
+
+- **Early days.** This is the beginning of the project, and it has been largely
+  vibe-coded — built iteratively with an AI agent around one person's real
+  workflow, not engineered as a product. Expect rough edges, missing features
+  and breaking changes.
+- **It can be very resource-hungry.** Selection, speed variants and montage
+  renders re-encode 4K video with x264 (roughly 4× real time per clip) and
+  `--smooth` motion interpolation needs ~6 GB RAM per clip on top of that.
+  A full run over an SD card's worth of footage keeps all CPU cores busy for
+  a long while — be careful on a machine you're using for other work.
+- **Back up your footage.** The pipeline is designed to never modify or delete
+  originals (selects are re-encoded copies, cleanup is archiving), but this is
+  young software driven by an AI agent: **always keep your own backup of the
+  source footage. Use at your own risk — no responsibility is taken for any
+  data loss** (see [LICENSE](LICENSE)).
+
 ## Requirements
 
 - **Python ≥ 3.10** and a venv (the `./vm` wrapper expects `.venv/`)
