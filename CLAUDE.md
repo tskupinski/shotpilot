@@ -51,6 +51,7 @@ from `./vm <command> --help`**, not from memory; decision criteria from
                       # (--title --description-file); no args: publishing state
 ./vm archive NAME     # output/ -> archive/<date>_<name>/ + clean start; vm restore = the reverse
 ./vm config           # input folder (--input-dir, e.g. an SD card); no flags shows the state
+./vm validate         # check manifest/summary/config files against the schema contract (pipeline/schemas/)
 ```
 
 Cuts: `sequence`/`montage`/`smooth`/`locate`/`music` accept `--cut NAME`
@@ -83,7 +84,9 @@ decisions per the codified rules, auditable report in `output/autopilot-report.m
   `music` (tracks and last mux)} — `main` is the main montage;
   top-level `publish` = title + description + thumbnail (deliberately without freshness
   mechanics — the thumbnail comes from the source, not the render); `schema_version`
-  is written by manifest.py
+  is written by manifest.py; the shape contract is `pipeline/schemas/project.schema.json`
+  (strict, validated on every save; closed tag vocabularies live THERE — montage.py
+  reads SHOTS/ROLES from it); on-demand check of all persistent JSON: `vm validate`
 - `config.json` (root, optional) — machine config (e.g. `input_dir` = an SD card);
   excluded from archiving; write via `vm config`, not by hand
 - `.env` (root, gitignored) — machine secrets (`STABILITY_API_KEY`); loaded at CLI

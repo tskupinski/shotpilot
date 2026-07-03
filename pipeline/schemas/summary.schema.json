@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "shotpilot/summary.schema.json",
+  "$comment": "Contract for output/<stem>/summary.json. Writer: pipeline/scan.py (validated before write); explicit check: `vm validate`. Read by cmd_status.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["video", "params", "stats", "segments", "rejected", "artifacts", "warnings"],
+  "properties": {
+    "video": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "width", "height", "fps", "duration"],
+      "properties": {
+        "path": {"type": "string"},
+        "width": {"type": "integer", "minimum": 1},
+        "height": {"type": "integer", "minimum": 1},
+        "fps": {"type": "number", "exclusiveMinimum": 0},
+        "duration": {"type": "number", "exclusiveMinimum": 0}
+      }
+    },
+    "params": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min_clip", "margin", "threshold_mode", "threshold", "cut"],
+      "properties": {
+        "min_clip": {"type": "number", "minimum": 0},
+        "margin": {"type": "number", "minimum": 0},
+        "threshold_mode": {"enum": ["auto", "manual"]},
+        "threshold": {"type": "number"},
+        "cut": {"type": "boolean"}
+      }
+    },
+    "stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["n_segments", "kept_s", "kept_pct", "tracking_failed_pct", "score_p50", "score_p90"],
+      "properties": {
+        "n_segments": {"type": "integer", "minimum": 0},
+        "kept_s": {"type": "number", "minimum": 0},
+        "kept_pct": {"type": "number", "minimum": 0},
+        "tracking_failed_pct": {"type": "number", "minimum": 0},
+        "score_p50": {"type": "number"},
+        "score_p90": {"type": "number"}
+      }
+    },
+    "segments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["index", "start", "end", "duration", "score", "clip"],
+        "properties": {
+          "index": {"type": "integer", "minimum": 1},
+          "start": {"type": "number", "minimum": 0},
+          "end": {"type": "number", "minimum": 0},
+          "duration": {"type": "number", "minimum": 0},
+          "score": {"type": "number"},
+          "clip": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "rejected": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["start", "end", "duration", "peak_score"],
+        "properties": {
+          "start": {"type": "number", "minimum": 0},
+          "end": {"type": "number", "minimum": 0},
+          "duration": {"type": "number", "minimum": 0},
+          "peak_score": {"type": "number"}
+        }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "review_sheet", "contact_sheet", "report", "segments_json", "motion_csv"],
+      "properties": {
+        "summary": {"type": "string"},
+        "review_sheet": {"type": "string"},
+        "contact_sheet": {"type": "string"},
+        "report": {"type": "string"},
+        "segments_json": {"type": "string"},
+        "motion_csv": {"type": "string"}
+      }
+    },
+    "warnings": {"type": "array", "items": {"type": "string"}}
+  }
+}

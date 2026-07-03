@@ -20,7 +20,7 @@ from . import (config, contact, manifest,
                montage as montage_mod, motion, music as music_mod,
                ffmpeg, locate as locate_mod, pace as pace_mod, paths,
                publish as publish_mod, scan as scan_mod,
-               sequence as sequence_mod)
+               schema as schema_mod, sequence as sequence_mod)
 from .cut import cut_range
 from .probe import probe
 
@@ -1078,6 +1078,45 @@ def cmd_config(args) -> int:
     return 0
 
 
+def cmd_validate(args) -> int:
+    """Checks the persistent JSON artifacts against pipeline/schemas/ (the contract).
+
+    Covered: output/project.json (post-migration view, as every command sees it),
+    every output/<stem>/summary.json, config.json. Missing files are skipped —
+    a fresh project validates clean.
+    """
+    results = []
+
+    def one(file: Path, name: str, load) -> None:
+        try:
+            errs = schema_mod.errors(load(), name)
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            errs = [f"invalid JSON: {e}"]
+        results.append({"file": str(file), "schema": name,
+                        "ok": not errs, "errors": errs})
+
+    if manifest.MANIFEST_PATH.exists():
+        one(manifest.MANIFEST_PATH, "project", manifest.load)
+    for f in sorted(paths.OUTPUT.glob("*/summary.json")):
+        one(f, "summary", lambda f=f: json.loads(f.read_text()))
+    if config.CONFIG_PATH.exists():
+        one(config.CONFIG_PATH, "config",
+            lambda: json.loads(config.CONFIG_PATH.read_text()))
+
+    failed = [r for r in results if not r["ok"]]
+    lines = []
+    for r in results:
+        if r["ok"]:
+            lines.append(f"OK   {r['file']}")
+        else:
+            lines.append(f"FAIL {r['file']}: {r['errors'][0]}")
+            lines += [f"     {e}" for e in r["errors"][1:]]
+    lines.append(f"{len(results)} files checked, {len(failed)} failed")
+    emit({"ok": not failed, "checked": len(results), "results": results},
+         args.json, "\n".join(lines))
+    return 1 if failed else 0
+
+
 # ------------------------------------------------------------------- parser
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1280,6 +1319,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--input-dir", type=Path,
                     help="folder with source recordings, e.g. an SD card (default: input/)")
     sp.add_argument("--reset", action="store_true", help="restore default settings")
+
+    add("validate", "check manifest/summary/config files against the schema "
+                    "contract (pipeline/schemas/)", cmd_validate)
 
     return p
 

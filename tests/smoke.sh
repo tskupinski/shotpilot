@@ -35,7 +35,7 @@ assert_json() {  # assert_json '<expr on d>' <<< json
 
 $PY "$ROOT/tests/make_test_video.py" "$SYN" >&2
 
-echo "[1/15] scan (+ contact sheet in a single pass)" >&2
+echo "[1/16] scan (+ contact sheet in a single pass)" >&2
 $VM scan "$SYN" --force --json 2>/dev/null \
     | assert_json "d['results'][0]['stats']['n_segments'] == 3"
 [ -f output/test_synthetic/contact.png ] || fail "scan did not generate contact.png"
@@ -46,20 +46,20 @@ ffmpeg -nostdin -y -v error -f lavfi -i "testsrc2=size=640x360:rate=30:duration=
 $VM scan "$TINY" --json 2>/dev/null \
     | assert_json "d['results'][0]['stats']['n_segments'] == 0"
 
-echo "[2/15] jitter" >&2
+echo "[2/16] jitter" >&2
 $VM jitter "$SYN" --from 9 --to 11 --json 2>/dev/null \
     | assert_json "d['verdict'] == 'jitter'"
 $VM jitter "$SYN" --from 14 --to 16 --json 2>/dev/null \
     | assert_json "d['verdict'] == 'smooth-maneuver'"
 
-echo "[3/15] sheet (cache) + frames" >&2
+echo "[3/16] sheet (cache) + frames" >&2
 $VM sheet "$SYN" --json 2>sheet.err \
     | assert_json "d['results'][0]['sheet'].endswith('contact.png')"
 grep -q "cache" sheet.err || fail "sheet did not use the cache after scan"
 $VM frames "$SYN" 1 15 --json 2>/dev/null \
     | assert_json "len(d['frames']) == 2"
 
-echo "[4/15] select (single + --plan resume)" >&2
+echo "[4/16] select (single + --plan resume)" >&2
 $VM select "$SYN" 13 18 --label smoke --stars 1 --note "smoke test" --json 2>/dev/null \
     | assert_json "d['range'] == [13.0, 18.0] and d['stars'] == 1"
 [ -f "$SEL" ] || fail "select file missing"
@@ -71,7 +71,7 @@ $VM select --plan plan.jsonl --json 2>/dev/null \
 [ -f "$SEL2" ] || fail "select --plan did not cut the missing select"
 $VM select --plan plan.jsonl --label x 2>/dev/null && fail "select --plan accepted --label" || true
 
-echo "[5/15] pace (source motion reuse + profile) + speed + guard" >&2
+echo "[5/16] pace (source motion reuse + profile) + speed + guard" >&2
 $VM pace "$SEL" --profile --json 2>pace.err \
     | assert_json "d['results'][0]['pace']['total_pct_s'] > 0 and d['results'][0]['profile']['windows'] and 't0_src' in d['results'][0]['profile']['windows'][0]"
 grep -q "motion.csv" pace.err || fail "pace did not reuse the source's motion.csv via the manifest"
@@ -80,11 +80,11 @@ $VM speed "$SEL" 2 --json 2>/dev/null \
 $VM speed "$SELX2" 2 2>/dev/null \
     && fail "speed did not refuse on an _x2 variant" || true
 
-echo "[6/15] status" >&2
+echo "[6/16] status" >&2
 $VM status --json 2>/dev/null \
     | assert_json "any(s['label'] == 'smoke' and s['speed_variants'] for s in d['selects'])"
 
-echo "[7/15] tag" >&2
+echo "[7/16] tag" >&2
 $VM tag "$SEL" --scene synthetic --shot panorama --light midday --json 2>/dev/null \
     | assert_json "d['results'][0]['tags'] == {'scene': 'synthetic', 'shot': 'panorama', 'light': 'midday'}"
 $VM tag "$SEL" --scene "Bad Tags" 2>/dev/null && fail "tag accepted non-kebab-case" || true
@@ -101,7 +101,7 @@ $VM tag "$SEL2" --reject --unreject 2>/dev/null && fail "tag accepted --reject a
 $VM tag "$SEL2" --unreject --json 2>/dev/null \
     | assert_json "d['results'][0]['reject'] is False"
 
-echo "[8/15] sequence + lint + target" >&2
+echo "[8/16] sequence + lint + target" >&2
 $VM sequence "$SEL2" "$SELX2" --target 30 --json 2>/dev/null \
     | assert_json "abs(d['total_s'] - 7.5) < 0.5 and d['target_s'] == 30 and any(w['type'] == 'adjacent_same_scene' for w in d['warnings']) and any(w['type'] == 'duration_off_target' for w in d['warnings'])"
 $VM sequence --target 8 --json 2>/dev/null \
@@ -123,7 +123,7 @@ $VM sequence --json 2>/dev/null \
     | assert_json "any(w['type']=='rejected_clip' for w in d['warnings']) and any(r['file'].endswith('smoke2.mp4') for r in d['rejected'])"
 $VM tag "$SEL2" --unreject >/dev/null 2>&1
 
-echo "[9/15] montage (draft --xfade 0 + default crossfade + --smooth)" >&2
+echo "[9/16] montage (draft --xfade 0 + default crossfade + --smooth)" >&2
 $VM montage --out "$MONT" --xfade 0 --json 2>/dev/null \
     | assert_json "abs(d['duration'] - 7.5) < 0.5 and d['clips'] == 2 and d['xfade'] == 0 and d['smooth'] is False"
 [ -f "$MONT" ] || fail "montage file missing"
@@ -169,7 +169,7 @@ $VM smooth smoke_30.mp4 --fps 60/1 --json 2>/dev/null \
 $VM status --json 2>/dev/null \
     | assert_json "d['cuts']['main']['render']['state'] == 'fresh'"
 
-echo "[10/15] locate (time->clip, reverse lookup, timeline)" >&2
+echo "[10/16] locate (time->clip, reverse lookup, timeline)" >&2
 $VM locate --json 2>/dev/null \
     | assert_json "len(d['timeline']) == 2 and abs(d['film_s'] - 6.5) < 0.6 and d['render']['state'] == 'fresh'"
 $VM locate 0:03 smoke2 --json 2>/dev/null \
@@ -184,7 +184,7 @@ $VM locate 0:03 --files "$MONT" --json 2>/dev/null \
     | assert_json "d['results'][0]['clip']['label'] == 'smoke_montage'"
 $VM locate 0:01 --files no/such/file.mp4 2>/dev/null && fail "locate --files accepted a nonexistent file" || true
 
-echo "[11/15] music (probe + mux + loop + staleness)" >&2
+echo "[11/16] music (probe + mux + loop + staleness)" >&2
 ffmpeg -nostdin -y -v error -f lavfi -i "sine=frequency=440:duration=12" "$MUSIC"
 $VM music --probe "$MUSIC" --json 2>/dev/null \
     | assert_json "abs(d['results'][0]['duration_s'] - 12) < 0.2 and d['results'][0]['energy'] and d['results'][0]['integrated_lufs'] is not None"
@@ -201,7 +201,7 @@ ffmpeg -nostdin -y -v error -f lavfi -i "sine=frequency=330:duration=3" "$MUSIC_
 $VM music "$MUSIC_SHORT" --loop --out "$FINAL" --json 2>/dev/null \
     | assert_json "d['looped'] and d['gap_s'] < 0.6 and abs(d['audio_s'] - d['video_s']) < 0.6"
 
-echo "[12/15] trim (re-cut from source + variant refresh + staleness + cut guard)" >&2
+echo "[12/16] trim (re-cut from source + variant refresh + staleness + cut guard)" >&2
 # the select also plays in a second cut -> trim must warn that it changes all cuts
 $VM sequence --cut smoke-b "$SEL" >/dev/null 2>&1
 $VM trim "$SEL" 14 17 --note "smoke trim" --json 2>trim.err \
@@ -217,7 +217,7 @@ $PY -c "from pipeline import manifest; manifest.remove('$SEL'); manifest.remove(
 $PY -c "from pipeline import manifest; assert manifest.get_cut()['sequence'] == []" \
     || fail "remove did not clear the montage sequence"
 
-echo "[13/15] config: custom input folder (isolated tmp)" >&2
+echo "[13/16] config: custom input folder (isolated tmp)" >&2
 TMP=$(mktemp -d)
 mkdir -p "$TMP/output" "$TMP/sdcard"
 touch "$TMP/sdcard/card.mp4"
@@ -241,7 +241,7 @@ run_tmp config --json \
     || fail "real env did not win over .env"
 rm -rf "$TMP"
 
-echo "[14/15] archive + restore (isolated tmp)" >&2
+echo "[14/16] archive + restore (isolated tmp)" >&2
 TMP=$(mktemp -d)
 mkdir -p "$TMP/output" "$TMP/input"
 echo '{"selects": []}' > "$TMP/output/project.json"
@@ -258,7 +258,7 @@ ARCH=$(ls "$TMP/archive")
 [ ! -d "$TMP/archive/$ARCH" ] || fail "empty archive was not cleaned up"
 rm -rf "$TMP"
 
-echo "[15/15] publish (thumbnail + description, isolated tmp)" >&2
+echo "[15/16] publish (thumbnail + description, isolated tmp)" >&2
 TMP=$(mktemp -d)
 mkdir -p "$TMP/output"
 ffmpeg -nostdin -y -v error -f lavfi -i "testsrc2=size=1920x1080:rate=24:duration=2" "$TMP/src.mp4"
@@ -289,4 +289,16 @@ run_pub publish --frame src.mp4 --at 99 --text "X" && fail "publish accepted a f
 ( cd "$TMP" && PYTHONPATH="$ROOT" "$ROOT/.venv/bin/python" -m pipeline publish --title "T" --description-file spec.txt 2>/dev/null ) \
     && fail "publish assembled a description without a template" || true
 rm -rf "$TMP"
+
+echo "[16/16] validate (schema contract + negative test)" >&2
+# every mutator has already passed save-side validation by now (selects, tags,
+# sequence, render, music, trim, remove) — this checks the files on disk
+$VM validate --json 2>/dev/null \
+    | assert_json "d['ok'] is True and d['checked'] >= 3"
+# a stray field must fail (additionalProperties: false)
+$PY -c "import json; p='output/project.json'; d=json.load(open(p)); d['bogus']=1; json.dump(d, open(p,'w'))"
+$VM validate >/dev/null 2>&1 && fail "validate accepted an invalid manifest" || true
+$PY -c "import json; p='output/project.json'; d=json.load(open(p)); d.pop('bogus'); json.dump(d, open(p,'w'))"
+$VM validate >/dev/null 2>&1 || fail "validate still failing after restoring the manifest"
+
 echo "SMOKE OK" >&2

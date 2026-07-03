@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "shotpilot/project.schema.json",
+  "$comment": "Contract for output/project.json. Writer: pipeline/manifest.py (validated in save()); explicit check: `vm validate`. Field criteria: docs/decision-rules.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "selects"],
+  "properties": {
+    "schema_version": {
+      "const": 4,
+      "$comment": "Bump workflow: 1) _migrate_vN() + call in manifest.load(), 2) bump SCHEMA_VERSION in manifest.py, 3) update this const and the changed shapes here."
+    },
+    "selects": {"type": "array", "items": {"$ref": "#/$defs/select"}},
+    "cuts": {
+      "type": "object",
+      "propertyNames": {"pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"},
+      "additionalProperties": {"$ref": "#/$defs/cut"}
+    },
+    "publish": {"$ref": "#/$defs/publish"}
+  },
+  "$defs": {
+    "kebab": {"type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"},
+    "range": {
+      "type": "array",
+      "prefixItems": [{"type": "number", "minimum": 0}, {"type": "number", "minimum": 0}],
+      "minItems": 2,
+      "maxItems": 2,
+      "items": false
+    },
+    "select": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "source", "range", "label", "stars", "notes", "pace_pct_s", "speed_variants", "tags"],
+      "properties": {
+        "file": {"type": "string"},
+        "source": {"type": "string"},
+        "range": {"$ref": "#/$defs/range"},
+        "label": {"type": "string"},
+        "stars": {"type": ["integer", "null"], "minimum": 1, "maximum": 5},
+        "notes": {"type": "string"},
+        "pace_pct_s": {"type": ["number", "null"]},
+        "speed_variants": {
+          "type": "object",
+          "propertyNames": {"pattern": "^[0-9]+(\\.[0-9]+)?$"},
+          "additionalProperties": {"type": "string"}
+        },
+        "tags": {"anyOf": [{"$ref": "#/$defs/tags"}, {"type": "null"}]},
+        "reject": {"type": "boolean"},
+        "range_history": {"type": "array", "items": {"$ref": "#/$defs/range"}}
+      }
+    },
+    "tags": {
+      "$comment": "shot/role are closed vocabularies — single source; montage.py loads SHOTS/ROLES from here. Criteria and extension rules: docs/decision-rules.md (Content tags).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scene": {"$ref": "#/$defs/kebab"},
+        "shot": {"enum": ["top-down", "panorama", "reveal", "flyover", "orbit", "dolly-in", "rise", "chase"]},
+        "light": {"$ref": "#/$defs/kebab"},
+        "role": {"enum": ["hook", "breather", "transition", "final"]}
+      }
+    },
+    "cut": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence"],
+      "properties": {
+        "sequence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["select", "use"],
+            "properties": {"select": {"type": "string"}, "use": {"type": "string"}}
+          }
+        },
+        "target_s": {"type": "number", "exclusiveMinimum": 0},
+        "notes": {"type": "string"},
+        "updated": {"type": "string"},
+        "render": {"$ref": "#/$defs/render"},
+        "music": {"$ref": "#/$defs/music"}
+      }
+    },
+    "render": {
+      "$comment": "Exact record from cmd_montage + rendered_at stamped by manifest.record_render; freshness (montage.render_state) compares files vs sequence[].use and parses rendered_at.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["out", "clips", "xfade_s", "expected_s", "duration_s", "clip_durations_s", "files", "rendered_at"],
+      "properties": {
+        "out": {"type": "string"},
+        "clips": {"type": "integer", "minimum": 1},
+        "xfade_s": {"type": "number", "minimum": 0},
+        "expected_s": {"type": "number"},
+        "duration_s": {"type": "number"},
+        "clip_durations_s": {"type": "array", "items": {"type": "number"}},
+        "files": {"type": "array", "items": {"type": "string"}},
+        "rendered_at": {"type": "string"}
+      }
+    },
+    "music": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tracks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["file", "prompt", "provider", "duration_s", "generated_at"],
+            "properties": {
+              "file": {"type": "string"},
+              "prompt": {"type": "string"},
+              "provider": {"type": "string"},
+              "duration_s": {"type": "number"},
+              "generated_at": {"type": "string"}
+            }
+          }
+        },
+        "applied": {
+          "$comment": "render_rendered_at ties the mux to the render's rendered_at (montage.music_state).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tracks", "out", "fade_in", "fade_out", "lufs", "loop", "audio_s", "render_rendered_at", "applied_at"],
+          "properties": {
+            "tracks": {"type": "array", "items": {"type": "string"}},
+            "out": {"type": "string"},
+            "fade_in": {"type": "number"},
+            "fade_out": {"type": "number"},
+            "lufs": {"type": "number"},
+            "loop": {"type": "boolean"},
+            "audio_s": {"type": "number"},
+            "render_rendered_at": {"type": "string"},
+            "applied_at": {"type": "string"}
+          }
+        }
+      }
+    },
+    "publish": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["updated"],
+      "properties": {
+        "title": {"type": "string"},
+        "description_file": {"type": "string"},
+        "updated": {"type": "string"},
+        "thumbnail": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["file", "source", "at_s", "text", "subtitle", "pos", "rendered_at"],
+          "properties": {
+            "file": {"type": "string"},
+            "source": {"type": "string"},
+            "at_s": {"type": "number", "minimum": 0},
+            "text": {"type": "string"},
+            "subtitle": {"type": ["string", "null"]},
+            "pos": {"enum": ["bottom", "top"]},
+            "rendered_at": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}

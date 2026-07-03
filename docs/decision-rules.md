@@ -58,7 +58,8 @@ once; kebab-case, one value per dimension (the shot's dominant trait):
 - **`scene`** — location/subject, open vocabulary; examples: `mountain-ridge`,
   `lake`, `dam`, `village`, `monastery`, `river-bend`, `meadow`.
 - **`shot`** — shot type, **closed list** (validated by the CLI; extensions:
-  here AND in `SHOTS` in `pipeline/montage.py`):
+  here AND in the enum in `pipeline/schemas/project.schema.json` — montage.py
+  reads `SHOTS` from there):
   `top-down` · `panorama` · `reveal` · `flyover` · `orbit` · `dolly-in` ·
   `rise` · `chase`.
 - **`light`** — light/mood: `golden-hour` · `midday` · `overcast` · `fog` ·

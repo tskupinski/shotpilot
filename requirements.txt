@@ -2,3 +2,4 @@ opencv-python>=4.10
 numpy>=2.0
 matplotlib>=3.9
 Pillow>=10.0
+jsonschema>=4.18

@@ -15,15 +15,16 @@ import datetime
 import sys
 from pathlib import Path
 
-from . import ffmpeg, paths
+from . import ffmpeg, paths, schema
 from .cut import X264_ARGS
 
 SMOOTH_CACHE = paths.SMOOTH_CACHE
 
 UNIFORM_KEYS = ("codec_name", "width", "height", "pix_fmt", "r_frame_rate")
 
-# Narrative roles of a clip (tags.role) — closed vocabulary, criteria in decision-rules.md.
-ROLES = ("hook", "breather", "transition", "final")
+# Narrative roles of a clip (tags.role) — closed vocabulary; single source:
+# pipeline/schemas/project.schema.json ($defs.tags), criteria in decision-rules.md.
+ROLES = schema.tag_enum("role")
 
 # Freshness states of the render/music (render_state/music_state) — compared
 # as strings also in cli.py, hence constants instead of literals.
@@ -32,9 +33,9 @@ STATE_FRESH = "fresh"        # matches the current sequence and files
 STATE_STALE = "stale"        # sequence/clips changed after the render
 STATE_EXTERNAL = "external"  # ad-hoc render from --files, outside the manifest
 
-# Shot types (tags.shot) — closed vocabulary; extensions: here AND in decision-rules.md.
-SHOTS = ("top-down", "panorama", "reveal", "flyover", "orbit", "dolly-in",
-         "rise", "chase")
+# Shot types (tags.shot) — closed vocabulary; single source:
+# pipeline/schemas/project.schema.json ($defs.tags), criteria in decision-rules.md.
+SHOTS = schema.tag_enum("shot")
 
 
 def stream_fields(path: Path) -> dict:

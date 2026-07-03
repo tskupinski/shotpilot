@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import contact, cut, motion, paths, report, segments as seg
+from . import contact, cut, motion, paths, report, schema, segments as seg
 from .probe import probe
 
 SHEET_INTERVAL_S = 2.0
@@ -107,6 +107,7 @@ def scan_video(
         },
         "warnings": build_warnings(stats, len(found)),
     }
+    schema.check(summary, "summary", str(out_dir / "summary.json"))
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n")
     for w in summary["warnings"]:
         print(f"WARNING: {w}", file=sys.stderr)

@@ -14,6 +14,8 @@ import json
 import os
 from pathlib import Path
 
+from . import schema
+
 CONFIG_PATH = Path("config.json")
 ENV_PATH = Path(".env")
 DEFAULTS = {"input_dir": "input"}
@@ -43,6 +45,7 @@ def save(cfg: dict) -> None:
     """Writes only deviations from the defaults; with none, removes the file."""
     diff = {k: v for k, v in cfg.items() if DEFAULTS.get(k) != v}
     if diff:
+        schema.check(diff, "config", str(CONFIG_PATH))
         CONFIG_PATH.write_text(
             json.dumps(diff, indent=2, ensure_ascii=False) + "\n")
     elif CONFIG_PATH.exists():

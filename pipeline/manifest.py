@@ -7,6 +7,11 @@ and montage cuts (top-level "cuts": name -> {sequence, target_s, render, music};
 also YT publish assets (top-level "publish": title, description, thumbnail).
 Read by `vm status`, updated by `vm select` / `vm tag` / `vm pace` / `vm speed`
 / `vm trim` / `vm sequence` / `vm montage` / `vm music` / `vm publish`.
+
+Shape contract: pipeline/schemas/project.schema.json (strict — unknown fields
+fail), validated on every save(); explicit check of files on disk: `vm validate`.
+Schema bump: 1) _migrate_vN() + call in load(), 2) bump SCHEMA_VERSION,
+3) update the const and shapes in the schema file.
 """
 
 import datetime
@@ -17,7 +22,7 @@ import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 
-from . import paths
+from . import paths, schema
 
 MANIFEST_PATH = paths.MANIFEST
 
@@ -90,6 +95,7 @@ def load() -> dict:
 
 def save(data: dict) -> None:
     data["schema_version"] = SCHEMA_VERSION
+    schema.check(data, "project", str(MANIFEST_PATH))
     MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=MANIFEST_PATH.parent, suffix=".tmp")
     with os.fdopen(fd, "w") as f:

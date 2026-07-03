@@ -20,7 +20,11 @@ dependencies = [
     "numpy>=2.0",
     "matplotlib>=3.9",
     "Pillow>=10.0",
+    "jsonschema>=4.18",
 ]
 
 [tool.setuptools]
 packages = ["pipeline"]
+
+[tool.setuptools.package-data]
+pipeline = ["schemas/*.schema.json"]
