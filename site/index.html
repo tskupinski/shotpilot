@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shotpilot — agent-first pipeline from drone footage to an edited film</title>
+<meta name="description" content="An open-source, agent-first pipeline from raw drone footage to a published film: motion analysis, aesthetic review, selects, pacing, crossfade montage, AI music and YouTube publishing assets. Built for Claude Code, works by hand too.">
+<meta property="og:title" content="Shotpilot — you fly, your agent edits">
+<meta property="og:description" content="Open-source pipeline from drone footage to an edited film: OpenCV motion analysis, selects, pacing, crossfade montage, AI music, YouTube assets. Agent-first, CLI underneath.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23171D26'/%3E%3Crect x='5' y='13' width='13' height='8' rx='1.5' fill='%236FC3D6'/%3E%3Crect x='15' y='11' width='12' height='8' rx='1.5' fill='%23E9A13B'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #171D26;
+    --panel: #1F2733;
+    --panel-2: #242E3C;
+    --line: #313D4D;
+    --ink: #E9EDF2;
+    --muted: #94A1B2;
+    --faint: #6B7889;
+    --amber: #E9A13B;
+    --amber-dim: #B57C2E;
+    --cyan: #6FC3D6;
+    --display: "Bricolage Grotesque", system-ui, sans-serif;
+    --body: "Instrument Sans", system-ui, sans-serif;
+    --mono: "Spline Sans Mono", ui-monospace, monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 17px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection { background: var(--amber); color: #171D26; }
+
+  a { color: var(--cyan); text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- nav ---------- */
+  nav {
+    border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+  }
+  .nav-inner {
+    display: flex; align-items: center; gap: 28px;
+    height: 60px;
+  }
+  .wordmark {
+    font-family: var(--mono); font-weight: 600; font-size: 16px;
+    color: var(--ink); letter-spacing: 0.02em;
+  }
+  .wordmark:hover { text-decoration: none; }
+  .wordmark .tick { color: var(--amber); }
+  .nav-links { display: flex; gap: 22px; margin-left: auto; align-items: center; }
+  .nav-links a { color: var(--muted); font-size: 15px; font-weight: 500; }
+  .nav-links a:hover { color: var(--ink); text-decoration: none; }
+  .btn-gh {
+    font-family: var(--mono); font-size: 14px; font-weight: 500;
+    color: var(--bg) !important; background: var(--ink);
+    padding: 7px 15px; border-radius: 6px;
+  }
+  .btn-gh:hover { background: #fff; text-decoration: none; }
+
+  /* ---------- eyebrows (timecode style) ---------- */
+  .eyebrow {
+    font-family: var(--mono); font-size: 13px; font-weight: 500;
+    letter-spacing: 0.08em; color: var(--amber);
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 18px;
+  }
+  .eyebrow::after { content: ""; height: 1px; flex: 0 0 40px; background: var(--amber-dim); }
+  .eyebrow .tc { color: var(--faint); }
+
+  /* ---------- hero ---------- */
+  header.hero { padding: 84px 0 0; }
+  .hero h1 {
+    font-family: var(--display);
+    font-size: clamp(42px, 6.4vw, 74px);
+    font-weight: 800;
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    max-width: 14ch;
+  }
+  .hero h1 em {
+    font-style: normal; color: var(--amber);
+  }
+  .hero .lede {
+    margin-top: 26px; max-width: 56ch;
+    font-size: 19px; color: var(--muted);
+  }
+  .hero .lede strong { color: var(--ink); font-weight: 600; }
+  .hero-ctas { display: flex; gap: 14px; margin-top: 34px; flex-wrap: wrap; }
+  .btn {
+    font-family: var(--mono); font-size: 15px; font-weight: 500;
+    padding: 12px 22px; border-radius: 8px; display: inline-block;
+  }
+  .btn:hover { text-decoration: none; }
+  .btn-primary { background: var(--amber); color: #1A1408; }
+  .btn-primary:hover { background: #F5B355; }
+  .btn-secondary { border: 1px solid var(--line); color: var(--ink); }
+  .btn-secondary:hover { border-color: var(--faint); }
+
+  /* ---------- timeline (signature) ---------- */
+  .timeline {
+    margin: 72px 0 0;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--panel);
+    padding: 18px 18px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .tl-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: var(--mono); font-size: 12px; color: var(--faint);
+    margin-bottom: 10px; gap: 10px;
+  }
+  .tl-head .cut { color: var(--muted); }
+  .tl-head .cut b { color: var(--cyan); font-weight: 500; }
+
+  .tl-curve { display: block; width: 100%; height: 46px; margin-bottom: 4px; }
+
+  .tl-ruler {
+    display: flex; justify-content: space-between;
+    font-family: var(--mono); font-size: 11px; color: var(--faint);
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 5px; margin-bottom: 10px;
+  }
+
+  .tl-track { display: flex; gap: 0; position: relative; }
+  .clip {
+    position: relative;
+    height: 118px;
+    border-radius: 6px;
+    overflow: hidden;
+    flex-grow: var(--w, 1);
+    flex-basis: 0;
+    min-width: 0;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+  }
+  .clip + .clip { margin-left: -14px; }
+  .clip .footage { position: absolute; inset: 0; }
+  .clip .meta {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: 5px 9px 6px;
+    background: linear-gradient(180deg, transparent, rgba(13,17,23,0.85) 45%);
+    font-family: var(--mono); font-size: 11px;
+    display: flex; align-items: baseline; gap: 8px;
+    color: #DDE4EB; white-space: nowrap; overflow: hidden;
+  }
+  .clip .stars { color: var(--amber); letter-spacing: 0.1em; }
+  .clip .pace { color: var(--cyan); margin-left: auto; }
+  .clip .speed {
+    position: absolute; top: 7px; right: 8px;
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    background: var(--amber); color: #1A1408;
+    padding: 1px 7px; border-radius: 4px;
+  }
+  .xfade {
+    position: absolute; top: 38px; width: 16px; height: 16px;
+    border: 1.5px solid var(--cyan); background: var(--panel);
+    transform: rotate(45deg); border-radius: 3px; z-index: 3;
+  }
+
+  .playhead {
+    position: absolute; top: 74px; bottom: 16px; left: 32%;
+    width: 2px; background: var(--amber); z-index: 4;
+    animation: scrub 26s linear infinite alternate;
+  }
+  .playhead::before {
+    content: "";
+    position: absolute; top: -7px; left: -5px;
+    border: 6px solid transparent; border-top: 8px solid var(--amber);
+  }
+  @keyframes scrub {
+    from { left: 6%; }
+    to   { left: 93%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .playhead { animation: none; }
+    html { scroll-behavior: auto; }
+  }
+
+  /* footage gradients — graded stand-ins for real shots */
+  .f-lake    { background: linear-gradient(178deg, #A9C6D4 0%, #6E97AA 48%, #2E5261 100%); }
+  .f-ridge   { background: linear-gradient(172deg, #E3BC85 0%, #B37F4A 55%, #4E3B2D 100%); }
+  .f-forest  { background: linear-gradient(184deg, #9FB49B 0%, #5C7A5C 50%, #2F4633 100%); }
+  .f-village { background: linear-gradient(176deg, #D9AE9B 0%, #8E6D74 55%, #45394C 100%); }
+  .f-sky     { background: linear-gradient(180deg, #C4D8E4 0%, #8CAEC4 60%, #5F7F97 100%); }
+  .footage::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(90deg, rgba(23,29,38,0.25), transparent 25%, transparent 75%, rgba(23,29,38,0.25));
+  }
+
+  /* ---------- sections ---------- */
+  section { padding: 96px 0 0; }
+  section:last-of-type { padding-bottom: 96px; }
+  h2 {
+    font-family: var(--display);
+    font-size: clamp(30px, 4vw, 42px);
+    font-weight: 700; letter-spacing: -0.015em; line-height: 1.12;
+    max-width: 24ch;
+  }
+  .section-lede { margin-top: 16px; color: var(--muted); max-width: 62ch; }
+  .section-lede strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- agent-first: split with terminal ---------- */
+  .split { display: grid; grid-template-columns: 1fr 1.15fr; gap: 48px; margin-top: 44px; align-items: start; }
+  .split .prose p { color: var(--muted); margin-bottom: 16px; }
+  .split .prose p strong { color: var(--ink); font-weight: 600; }
+  .split .prose code, .inline-code {
+    font-family: var(--mono); font-size: 0.86em;
+    background: var(--panel-2); border: 1px solid var(--line);
+    padding: 1px 6px; border-radius: 5px; color: var(--ink);
+  }
+
+  .terminal {
+    border: 1px solid var(--line); border-radius: 12px;
+    background: #131820; overflow: hidden;
+    font-family: var(--mono); font-size: 13.5px; line-height: 1.75;
+  }
+  .term-bar {
+    display: flex; align-items: center; gap: 7px;
+    padding: 10px 14px; background: var(--panel); border-bottom: 1px solid var(--line);
+  }
+  .term-bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); display: block; }
+  .term-bar span { margin-left: 8px; font-size: 12px; color: var(--faint); }
+  .term-body { padding: 18px 20px; overflow-x: auto; }
+  .term-body .you  { color: var(--amber); }
+  .term-body .agent{ color: var(--cyan); }
+  .term-body .cmd  { color: #C8D2DD; }
+  .term-body .dim  { color: var(--faint); }
+  .term-body p { white-space: pre-wrap; margin: 0 0 12px; color: #B9C3CF; }
+  .term-body p:last-child { margin-bottom: 0; }
+
+  /* ---------- pipeline steps ---------- */
+  .steps {
+    margin-top: 48px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+    counter-reset: step;
+  }
+  .step {
+    border: 1px solid var(--line); border-radius: 10px;
+    background: var(--panel); padding: 22px 20px 20px;
+    counter-increment: step;
+  }
+  .step::before {
+    content: "0" counter(step);
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
+    color: var(--amber); letter-spacing: 0.1em;
+    display: block; margin-bottom: 12px;
+  }
+  .step h3 { font-family: var(--display); font-size: 19px; font-weight: 700; margin-bottom: 8px; }
+  .step p { font-size: 15px; color: var(--muted); }
+  .step code {
+    font-family: var(--mono); font-size: 12.5px; color: var(--cyan);
+    display: block; margin-top: 12px;
+  }
+  .step:last-child { grid-column: 1 / -1; }
+  .step:last-child p { max-width: 62ch; }
+
+  /* ---------- example film ---------- */
+  .film {
+    margin-top: 44px;
+    display: block; position: relative; border-radius: 14px; overflow: hidden;
+    border: 1px solid var(--line);
+  }
+  .film img { display: block; width: 100%; height: auto; }
+  .film::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 55%, rgba(13,17,23,0.75));
+  }
+  .film .play {
+    position: absolute; inset: 0; display: grid; place-items: center; z-index: 2;
+  }
+  .film .play span {
+    width: 74px; height: 74px; border-radius: 50%;
+    background: color-mix(in srgb, var(--bg) 72%, transparent);
+    border: 1.5px solid var(--ink);
+    display: grid; place-items: center;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+  .film:hover .play span { transform: scale(1.08); background: var(--amber); border-color: var(--amber); }
+  .film .play svg { margin-left: 4px; }
+  .film:hover .play svg path { fill: #1A1408; }
+  .film .caption {
+    position: absolute; left: 20px; right: 20px; bottom: 16px; z-index: 2;
+    font-family: var(--mono); font-size: 13px; color: #DDE4EB;
+  }
+
+  /* ---------- CLI ---------- */
+  .cli-grid {
+    margin-top: 44px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0 40px;
+    border-top: 1px solid var(--line);
+  }
+  .cli-row {
+    display: grid; grid-template-columns: 168px 1fr; gap: 16px;
+    padding: 13px 0; border-bottom: 1px solid var(--line);
+    align-items: baseline;
+  }
+  .cli-row code { font-family: var(--mono); font-size: 13.5px; color: var(--cyan); font-weight: 500; }
+  .cli-row span { font-size: 14.5px; color: var(--muted); }
+  .cli-note { margin-top: 22px; font-size: 15px; color: var(--faint); }
+
+  /* ---------- heads up ---------- */
+  .warn-cards { margin-top: 44px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .warn {
+    border: 1px solid var(--amber-dim); border-radius: 10px;
+    background: color-mix(in srgb, var(--amber) 5%, var(--panel));
+    padding: 22px 20px;
+  }
+  .warn h3 {
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    letter-spacing: 0.06em; color: var(--amber); margin-bottom: 10px;
+  }
+  .warn p { font-size: 15px; color: var(--muted); }
+  .warn p strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- quickstart ---------- */
+  .quick { display: grid; grid-template-columns: 1fr 1.15fr; gap: 48px; margin-top: 44px; align-items: start; }
+  .req { list-style: none; }
+  .req li {
+    padding: 12px 0; border-bottom: 1px solid var(--line);
+    color: var(--muted); font-size: 15.5px;
+  }
+  .req li:first-child { border-top: 1px solid var(--line); }
+  .req li strong { color: var(--ink); font-weight: 600; }
+  pre.code {
+    border: 1px solid var(--line); border-radius: 12px;
+    background: #131820; padding: 20px 22px;
+    font-family: var(--mono); font-size: 13.5px; line-height: 1.8;
+    overflow-x: auto; color: #C8D2DD;
+  }
+  pre.code .c { color: var(--faint); }
+  pre.code .say { color: var(--amber); }
+
+  /* ---------- footer ---------- */
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 36px 0 44px; margin-top: 0;
+  }
+  .foot-inner {
+    display: flex; gap: 24px; align-items: baseline; flex-wrap: wrap;
+    font-size: 14.5px; color: var(--faint);
+  }
+  .foot-inner .wordmark { font-size: 14px; }
+  .foot-inner a { color: var(--muted); }
+  .foot-inner .spacer { flex: 1; }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 880px) {
+    .split, .quick { grid-template-columns: 1fr; gap: 32px; }
+    .steps { grid-template-columns: 1fr 1fr; }
+    .warn-cards { grid-template-columns: 1fr; }
+    .cli-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px) {
+    body { font-size: 16px; }
+    .steps { grid-template-columns: 1fr; }
+    .nav-links a:not(.btn-gh) { display: none; }
+    .clip .meta { font-size: 9.5px; gap: 5px; }
+    .clip { height: 92px; }
+    .xfade { top: 30px; }
+    section { padding-top: 72px; }
+    header.hero { padding-top: 56px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap nav-inner">
+    <a class="wordmark" href="#"><span class="tick">▸</span> shotpilot</a>
+    <div class="nav-links">
+      <a href="#agent-first">Agent-first</a>
+      <a href="#pipeline">Pipeline</a>
+      <a href="#example">Example</a>
+      <a href="#cli">CLI</a>
+      <a class="btn-gh" href="https://github.com/tskupinski/shotpilot">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow"><span class="tc">00:00:00</span> OPEN SOURCE · MIT</div>
+    <h1>You fly. <em>Your agent edits.</em></h1>
+    <p class="lede">Shotpilot is an open-source pipeline from raw drone footage to a published
+    film: <strong>motion-smoothness analysis, aesthetic review, selects, pacing, crossfade montage,
+    AI-generated music and YouTube publishing assets</strong> — designed to be operated by an AI
+    coding agent, with a plain CLI underneath.</p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="https://github.com/tskupinski/shotpilot">View on GitHub</a>
+      <a class="btn btn-secondary" href="#example">Watch an example film</a>
+    </div>
+
+    <!-- signature: the montage timeline -->
+    <div class="timeline" role="img" aria-label="A stylized editing timeline: five clips with star ratings, pace readouts and crossfade transitions, a smoothness curve above them and a playhead moving across.">
+      <div class="tl-head">
+        <span class="cut">cut: <b>main</b> · 5 selects · target 3:20</span>
+        <span>smoothness ▁▂▆▇▇ · pace %/s</span>
+      </div>
+      <svg class="tl-curve" viewBox="0 0 1000 46" preserveAspectRatio="none" aria-hidden="true">
+        <polyline points="0,34 60,30 120,33 180,20 260,16 340,19 420,10 500,13 560,26 640,22 720,25 800,12 880,15 940,18 1000,14"
+          fill="none" stroke="#6FC3D6" stroke-width="1.5" opacity="0.9"/>
+        <polygon points="0,34 60,30 120,33 180,20 260,16 340,19 420,10 500,13 560,26 640,22 720,25 800,12 880,15 940,18 1000,14 1000,46 0,46"
+          fill="#6FC3D6" opacity="0.07"/>
+      </svg>
+      <div class="tl-ruler" aria-hidden="true">
+        <span>00:00</span><span>00:40</span><span>01:20</span><span>02:00</span><span>02:40</span><span>03:20</span>
+      </div>
+      <div class="tl-track" aria-hidden="true">
+        <div class="clip" style="--w:2.2"><div class="footage f-lake"></div>
+          <div class="meta"><span>0301_lake</span><span class="stars">★★★</span><span class="pace">1.6 %/s</span></div></div>
+        <div class="clip" style="--w:1.6"><div class="footage f-ridge"></div><span class="speed">×2.5</span>
+          <div class="meta"><span>0294_ridge</span><span class="stars">★★</span><span class="pace">3.8 %/s</span></div></div>
+        <div class="clip" style="--w:1.9"><div class="footage f-forest"></div>
+          <div class="meta"><span>0288_forest</span><span class="stars">★★</span><span class="pace">2.1 %/s</span></div></div>
+        <div class="clip" style="--w:1.4"><div class="footage f-village"></div>
+          <div class="meta"><span>0312_dusk</span><span class="stars">★★★</span><span class="pace">1.4 %/s</span></div></div>
+        <div class="clip" style="--w:1.7"><div class="footage f-sky"></div>
+          <div class="meta"><span>0307_finale</span><span class="stars">★★★</span><span class="pace">1.9 %/s</span></div></div>
+        <span class="xfade" style="left: 25.4%"></span>
+        <span class="xfade" style="left: 43.6%"></span>
+        <span class="xfade" style="left: 65.2%"></span>
+        <span class="xfade" style="left: 80.9%"></span>
+      </div>
+      <div class="playhead" aria-hidden="true"></div>
+    </div>
+  </div>
+</header>
+
+<section id="agent-first">
+  <div class="wrap">
+    <div class="eyebrow"><span class="tc">00:00:01</span> AGENT-FIRST</div>
+    <h2>The primary operator is an AI agent. You direct.</h2>
+    <div class="split">
+      <div class="prose">
+        <p><strong>You drop in footage, say what you want and approve decisions.</strong>
+        The agent runs the CLI, looks at the generated contact sheets and review plots,
+        applies the codified decision rules — and asks only when a call is genuinely yours to make.</p>
+        <p>Built for <a href="https://claude.com/claude-code">Claude Code</a>: skills like
+        <code>/shot-review</code>, <code>/montage</code> and <code>/autopilot</code> walk the agent
+        through selection, pacing and editing. Every decision lands in a persistent manifest
+        (<code>output/project.json</code>) — the source of truth across sessions.</p>
+        <p>And everything also works by hand: <code>./vm</code> is a normal command-line tool with
+        <code>--json</code> output, native batching and honest exit codes. No agent required.</p>
+      </div>
+      <div class="terminal">
+        <div class="term-bar"><i></i><i></i><i></i><span>claude code — shotpilot</span></div>
+        <div class="term-body">
+<p><span class="you">you ›</span> review the new footage</p>
+<p><span class="agent">agent ›</span> Scanning 14 files from the card…
+<span class="cmd">./vm scan input/DJI_0284.MP4 … --json</span></p>
+<p><span class="agent">agent ›</span> DJI_0301 is smooth throughout. The lake crossing
+at 00:42–01:18 is the strongest range — golden light,
+clean horizon. Cutting a select, <span class="you">★★★</span>.
+<span class="cmd">./vm select DJI_0301.MP4 42 78 --label lake --stars 3</span></p>
+<p><span class="you">you ›</span> isn’t the ridge shot too slow?</p>
+<p><span class="agent">agent ›</span> 1.4 %/s on screen — slow. A ×2.5 variant keeps
+the drift readable without feeling rushed.
+<span class="cmd">./vm speed output/selects/DJI_0294_ridge.mp4 2.5</span>
+<span class="dim">Kept the dusk shot at ×1 — it stays slow, that’s the mood.</span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="pipeline">
+  <div class="wrap">
+    <div class="eyebrow"><span class="tc">00:00:02</span> PIPELINE</div>
+    <h2>From SD card to published film, in seven stages.</h2>
+    <p class="section-lede">Each stage leaves auditable artifacts — review images, JSON summaries,
+    a manifest entry — so the human, or the next agent session, can see exactly why every cut happened.</p>
+    <div class="steps">
+      <div class="step"><h3>Scan</h3><p>Per-frame camera transform via OpenCV feature tracking; smoothness scores the <em>acceleration</em> of motion, so a fast uniform flyover reads as smooth and a jerk as a spike.</p><code>./vm scan input/*.MP4</code></div>
+      <div class="step"><h3>Review</h3><p>Contact sheets and KEPT/CUT review plots for every file — the agent judges composition, light and subject, and recommends ranges.</p><code>./vm frames FILE 12 40 88</code></div>
+      <div class="step"><h3>Select</h3><p>Chosen ranges are re-encoded into uniform clips with star ratings and decision notes; batch plans resume after interruptions.</p><code>./vm select FILE 42 78 --stars 3</code></div>
+      <div class="step"><h3>Pace</h3><p>Screen pace measured as % of frame width per second, with speed-up recommendations. Mechanical numbers; the mood call stays with the agent.</p><code>./vm pace --selects</code></div>
+      <div class="step"><h3>Montage</h3><p>Sequence ordering with a variety-and-narrative lint, then crossfade splicing — with optional motion interpolation for mixed frame rates.</p><code>./vm montage --smooth</code></div>
+      <div class="step"><h3>Music</h3><p>AI-generated track (Stable Audio) probed for duration, loudness and energy curve, then muxed onto the render. Paid API calls sit behind explicit cost gates.</p><code>./vm music --generate</code></div>
+      <div class="step"><h3>Publish</h3><p>YouTube thumbnail from a hero frame, plus title and description built from your channel template.</p><code>./vm publish --frame FILE T</code></div>
+    </div>
+  </div>
+</section>
+
+<section id="example">
+  <div class="wrap">
+    <div class="eyebrow"><span class="tc">00:00:03</span> EXAMPLE</div>
+    <h2>A film made end-to-end with this pipeline.</h2>
+    <p class="section-lede">Selection, pacing, montage with crossfades and the YouTube publishing
+    assets were all driven by the agent through the CLI.</p>
+    <a class="film" href="https://www.youtube.com/watch?v=jn8GxruFrVQ">
+      <img src="https://img.youtube.com/vi/jn8GxruFrVQ/maxresdefault.jpg" alt="Still from “Pruszków, WKD Komorów” — an aerial 4K drone shot" loading="lazy">
+      <span class="play"><span><svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="#E9EDF2"/></svg></span></span>
+      <span class="caption">Pruszków, WKD Komorów — 4K DJI Mini 3 · watch on YouTube ↗</span>
+    </a>
+  </div>
+</section>
+
+<section id="cli">
+  <div class="wrap">
+    <div class="eyebrow"><span class="tc">00:00:04</span> CLI</div>
+    <h2>One interface for humans and agents.</h2>
+    <p class="section-lede">All commands take multiple files (native batch) and support
+    <span class="inline-code">--json</span>: result on stdout, logs on stderr, exit ≠ 0 on error.</p>
+    <div class="cli-grid">
+      <div class="cli-row"><code>./vm status</code><span>project dashboard: inputs, selects, sequence, render, music, publishing</span></div>
+      <div class="cli-row"><code>./vm scan</code><span>smoothness analysis + contact sheet in one pass (mtime cache)</span></div>
+      <div class="cli-row"><code>./vm select</code><span>cut a select from the source, with stars, notes and resumable batch plans</span></div>
+      <div class="cli-row"><code>./vm pace</code><span>screen pace (%/s) + speed-up recommendation; finds dull stretches to trim</span></div>
+      <div class="cli-row"><code>./vm sequence</code><span>montage order + lint for variety and narrative structure</span></div>
+      <div class="cli-row"><code>./vm montage</code><span>crossfade splice; stream-copy drafts; <span class="inline-code">--smooth</span> interpolation</span></div>
+      <div class="cli-row"><code>./vm music</code><span>generate (Stable Audio), probe, and mux a track onto the render</span></div>
+      <div class="cli-row"><code>./vm publish</code><span>YouTube thumbnail, title and description</span></div>
+      <div class="cli-row"><code>./vm locate</code><span>read-only mapping: montage timeline ↔ source shots</span></div>
+      <div class="cli-row"><code>./vm archive</code><span>move the whole project state aside and start clean; <span class="inline-code">restore</span> reverses it</span></div>
+    </div>
+    <p class="cli-note">Plus <span class="inline-code">sheet</span>, <span class="inline-code">frames</span>,
+    <span class="inline-code">jitter</span>, <span class="inline-code">speed</span>, <span class="inline-code">tag</span>,
+    <span class="inline-code">trim</span>, <span class="inline-code">smooth</span>, <span class="inline-code">config</span>
+    and <span class="inline-code">validate</span> — full flag semantics live in
+    <span class="inline-code">./vm &lt;command&gt; --help</span> and the README.</p>
+  </div>
+</section>
+
+<section id="honesty">
+  <div class="wrap">
+    <div class="eyebrow"><span class="tc">00:00:05</span> READ THIS FIRST</div>
+    <h2>Young software. We’d rather you knew.</h2>
+    <div class="warn-cards">
+      <div class="warn"><h3>EARLY DAYS</h3><p>Built iteratively with an AI agent around <strong>one person’s real workflow</strong>, not engineered as a product. Expect rough edges, missing features and breaking changes.</p></div>
+      <div class="warn"><h3>RESOURCE-HUNGRY</h3><p>Selects and montage renders re-encode 4K with x264 (~4× real time per clip); <strong>--smooth</strong> interpolation needs ~6 GB RAM per clip on top. A full SD card keeps every core busy for a while.</p></div>
+      <div class="warn"><h3>BACK UP YOUR FOOTAGE</h3><p>The pipeline never modifies originals — selects are copies, cleanup is archiving — but this is young software driven by an agent. <strong>Keep your own backup. Use at your own risk.</strong></p></div>
+    </div>
+  </div>
+</section>
+
+<section id="quickstart">
+  <div class="wrap">
+    <div class="eyebrow"><span class="tc">00:00:06</span> QUICKSTART</div>
+    <h2>Three commands and a sentence.</h2>
+    <div class="quick">
+      <ul class="req">
+        <li><strong>Python ≥ 3.10</strong> with a venv (the <span class="inline-code">./vm</span> wrapper expects <span class="inline-code">.venv/</span>)</li>
+        <li><strong>ffmpeg / ffprobe</strong> on PATH</li>
+        <li><strong>macOS or Linux</strong> (no Windows support)</li>
+        <li><strong>Optional:</strong> a Stability AI key — only for music generation. Everything else is free and offline.</li>
+      </ul>
+      <pre class="code"><span class="c"># once</span>
+python3 -m venv .venv &amp;&amp; .venv/bin/pip install -r requirements.txt
+
+<span class="c"># drop footage into input/ — or point at the SD card</span>
+./vm config --input-dir /Volumes/SDCARD
+
+<span class="c"># then open Claude Code in the repo and say:</span>
+<span class="say">“review the new footage”</span>   <span class="c">→ /shot-review</span>
+<span class="say">“edit the film”</span>            <span class="c">→ /montage</span>
+<span class="say">“autopilot”</span>                <span class="c">→ no questions asked + a decision report</span></pre>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot-inner">
+    <a class="wordmark" href="#"><span class="tick">▸</span> shotpilot</a>
+    <span>MIT license</span>
+    <span class="spacer"></span>
+    <a href="https://github.com/tskupinski/shotpilot">GitHub</a>
+    <a href="https://www.youtube.com/watch?v=jn8GxruFrVQ">Example film</a>
+  </div>
+</footer>
+
+</body>
+</html>
