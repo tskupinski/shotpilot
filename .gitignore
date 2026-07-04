@@ -11,3 +11,4 @@ CLAUDE.local.md
 __pycache__/
 .claude/scheduled_tasks.lock
 .DS_Store
+.gstack/
