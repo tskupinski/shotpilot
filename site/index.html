@@ -314,6 +314,18 @@
     display: grid; grid-template-columns: 1fr 1fr; gap: 0 40px;
     border-top: 1px solid var(--line);
   }
+  /* ---------- ui screenshot ---------- */
+  .ui-shot { margin: 48px 0 0; }
+  .ui-shot img {
+    display: block; width: 100%; height: auto;
+    border: 1px solid var(--line); border-radius: 14px;
+  }
+  .ui-shot figcaption {
+    margin-top: 12px; text-align: center;
+    font-size: 13.5px; color: var(--muted);
+  }
+  .ui-shot figcaption code { font-family: var(--mono); font-size: 12.5px; }
+
   .cli-row {
     display: grid; grid-template-columns: 168px 1fr; gap: 16px;
     padding: 13px 0; border-bottom: 1px solid var(--line);
@@ -489,6 +501,11 @@ the drift readable without feeling rushed.
         </div>
       </div>
     </div>
+    <figure class="ui-shot">
+      <img src="shot-ui-selects.jpg" loading="lazy" width="1600" height="1000"
+           alt="shot ui — read-only web view: selects gallery with thumbnails, stars, tags and decision notes">
+      <figcaption><code>./shot ui</code> — the agent&rsquo;s selects with stars, tags and decision notes, ready to review in a local web view</figcaption>
+    </figure>
   </div>
 </section>
 

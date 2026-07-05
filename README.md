@@ -71,6 +71,19 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt   # once
 `./shot status` shows the whole project state at any point; the manifest
 `output/project.json` is the persistent source of truth for every decision.
 
+## Web UI
+
+Everything the agent decided, one `./shot ui` away — stars, tags, decision
+notes and the range each select was cut from, with the clips and the original
+4K sources playing right in the browser:
+
+![shot ui — selects gallery with thumbnails, stars, tags and decision notes](docs/img/shot-ui-selects.jpg)
+
+The cuts view mirrors the montage: sequence order with a running timeline,
+speed variants, render and music state:
+
+![shot ui — cut sequence with montage timeline, speed variants and render state](docs/img/shot-ui-cuts.jpg)
+
 ## CLI: `./shot`
 
 One interface for humans and agents, named after the domain object it works
