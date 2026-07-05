@@ -51,6 +51,9 @@ from `./shot <command> --help`**, not from memory; decision criteria from
                       # TRACK... = mux onto the render -> output/cuts/<cut>-final.mp4; --probe = analysis; no args: state
 ./shot publish ...      # YT thumbnail (--frame, inspect the result via Read) / title + description
                       # (--title --description-file); no args: publishing state
+./shot ui               # read-only web UI for the human: selects gallery (thumbnails,
+                      # ★/tags/notes, clip + source preview), cuts, inputs; localhost,
+                      # blocks until Ctrl-C (--port N, 0 = auto; --no-open)
 ./shot archive NAME     # output/ -> archive/<date>_<name>/ + clean start; shot restore = the reverse
 ./shot config           # input folder (--input-dir, e.g. an SD card); no flags shows the state
 ./shot validate         # check manifest/summary/config files against the schema contract (pipeline/schemas/)
@@ -106,6 +109,8 @@ decisions per the codified rules, auditable report in `output/autopilot-report.m
   (`cuts`). Historical `output/montage.mp4`/`final.mp4` is migrated by manifest.py (v3)
 - `output/smooth-cache/` — motion-interpolation cache for `--smooth` (full mechanics
   and usage rules: decision-rules.md "Mixed frame rates and `--smooth`")
+- `output/ui-cache/` — select poster thumbnails for `shot ui` (generated on demand,
+  mtime-cached like motion.csv — safe to delete, regenerates itself)
 - `output/music/` — generated tracks (mp3; metadata in the manifest:
   `cuts.<name>.music.tracks`); film with music → `output/cuts/<name>-final.mp4`
   (the cut's `music.applied` ties it to the render — re-render = music stale)

@@ -17,6 +17,7 @@ SELECTS = OUTPUT / "selects"
 SMOOTH_CACHE = OUTPUT / "smooth-cache"
 MUSIC = OUTPUT / "music"
 PUBLISH = OUTPUT / "publish"
+UI_CACHE = OUTPUT / "ui-cache"
 
 
 def video_dir(stem: str) -> Path:

@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shotpilot — project</title>
+<style>
+:root {
+  --bg: #14161a; --panel: #1c1f24; --panel-2: #22262c; --border: #2a2e35;
+  --text: #e6e3da; --dim: #8b8f98; --faint: #565b64;
+  --gold: #d9a441; --fresh: #7dc98f; --stale: #e0a458; --bad: #c96f6f;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+a { color: var(--gold); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button {
+  font: inherit; color: var(--text); background: var(--panel-2);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 4px 12px; cursor: pointer;
+}
+button:hover { border-color: var(--dim); }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--gold); outline-offset: 1px;
+}
+.mono { font-family: var(--mono); font-size: 12px; }
+
+header {
+  display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+  padding: 14px 20px 0;
+}
+header h1 { font-size: 16px; font-weight: 650; letter-spacing: .04em; margin: 0; }
+header h1 span { color: var(--gold); }
+#totals { color: var(--dim); font-size: 13px; }
+#meta { margin-left: auto; display: flex; gap: 10px; align-items: center;
+        color: var(--faint); font-size: 12px; }
+
+nav { display: flex; gap: 4px; padding: 10px 20px 0; border-bottom: 1px solid var(--border); }
+nav a {
+  color: var(--dim); padding: 6px 14px; border-radius: 6px 6px 0 0;
+  border: 1px solid transparent; border-bottom: none; font-size: 13px;
+}
+nav a.active {
+  color: var(--text); background: var(--panel);
+  border-color: var(--border); position: relative; top: 1px;
+}
+nav a:hover { text-decoration: none; color: var(--text); }
+nav a b { font-weight: 600; color: var(--gold); margin-left: 6px; font-size: 12px; }
+
+main { padding: 16px 20px 60px; }
+.msg { color: var(--dim); padding: 40px 0; text-align: center; }
+.msg code { font-family: var(--mono); color: var(--text); }
+
+/* ---- filters ---- */
+#filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+#filters input[type=text], #filters select {
+  font: inherit; color: var(--text); background: var(--panel);
+  border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px;
+}
+#filters label { color: var(--dim); font-size: 13px; display: flex; gap: 6px; align-items: center; }
+
+/* ---- selects gallery ---- */
+#grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  overflow: hidden; cursor: pointer; transition: border-color .12s;
+}
+.card:hover { border-color: var(--dim); }
+.card .ph { position: relative; aspect-ratio: 16/9; background: #0d0f12; }
+.card .ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.card .ph .missing {
+  position: absolute; inset: 0; display: flex; align-items: center;
+  justify-content: center; color: var(--faint); font-size: 12px;
+}
+.card .ph .dur {
+  position: absolute; right: 6px; bottom: 6px; background: rgba(0,0,0,.72);
+  border-radius: 4px; padding: 1px 6px; font-family: var(--mono); font-size: 11px;
+}
+.card.reject .ph img { filter: grayscale(.9) brightness(.55); }
+.card.reject .ph::after {
+  content: "✗ rejected"; position: absolute; left: 6px; top: 6px;
+  color: var(--bad); background: rgba(0,0,0,.72); border-radius: 4px;
+  padding: 1px 6px; font-size: 11px;
+}
+/* signature: where the cut sits inside its source file */
+.ribbon { height: 4px; background: var(--border); position: relative; }
+.ribbon i { position: absolute; top: 0; bottom: 0; background: var(--gold); }
+.card.reject .ribbon i { background: var(--bad); }
+.card .body { padding: 8px 10px 10px; }
+.card .top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.card .label { font-weight: 600; }
+.stars { color: var(--gold); font-size: 12px; letter-spacing: 2px; white-space: nowrap; }
+.stars .off { color: var(--faint); }
+.card .src { color: var(--dim); font-family: var(--mono); font-size: 11px; margin-top: 1px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.chip {
+  font-size: 11px; color: var(--dim); background: var(--panel-2);
+  border: 1px solid var(--border); border-radius: 999px; padding: 0 8px;
+}
+.chip.role { color: var(--gold); border-color: #4a3c1e; }
+.chip.var { font-family: var(--mono); }
+.chip.untagged { border-style: dashed; color: var(--faint); }
+.card .note { color: var(--dim); font-size: 12px; margin-top: 6px; }
+.card .facts { display: flex; gap: 10px; margin-top: 6px; color: var(--faint);
+               font-family: var(--mono); font-size: 11px; }
+
+/* ---- cuts ---- */
+.cut { background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+       margin-bottom: 18px; overflow: hidden; }
+.cut .head { display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+             padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.cut .head h2 { font-size: 14px; margin: 0; }
+.cut .head .mono { color: var(--dim); }
+.state { font-size: 11px; border-radius: 999px; padding: 1px 9px; border: 1px solid; }
+.state.fresh { color: var(--fresh); border-color: #2c4a35; }
+.state.stale { color: var(--stale); border-color: #4a3c1e; }
+.state.none, .state.empty { color: var(--faint); border-color: var(--border); }
+.cut .head .play { margin-left: auto; display: flex; gap: 8px; }
+.cut .cnote { padding: 8px 14px 0; color: var(--dim); font-size: 12px; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; color: var(--faint); font-weight: 500; font-size: 11px;
+     text-transform: uppercase; letter-spacing: .06em; padding: 8px 10px 4px; }
+td { padding: 5px 10px; border-top: 1px solid var(--border); vertical-align: middle; }
+tr.row { cursor: pointer; }
+tr.row:hover td { background: var(--panel-2); }
+td.n, td.t { font-family: var(--mono); font-size: 12px; color: var(--dim);
+             white-space: nowrap; }
+td img { width: 72px; aspect-ratio: 16/9; object-fit: cover; border-radius: 4px;
+         display: block; background: #0d0f12; }
+.badge { font-family: var(--mono); font-size: 11px; color: var(--stale);
+         border: 1px solid #4a3c1e; border-radius: 4px; padding: 0 5px; }
+tr.gone td { color: var(--faint); }
+
+/* ---- inputs ---- */
+tr.nosel td { background: rgba(217,164,65,.05); }
+.warn { color: var(--stale); cursor: pointer; }
+.warnlist { color: var(--dim); font-size: 12px; margin: 4px 0 0; padding-left: 18px; }
+
+/* ---- preview overlay ---- */
+#overlay {
+  position: fixed; inset: 0; background: rgba(8,9,11,.82); display: none;
+  align-items: flex-start; justify-content: center; padding: 4vh 16px; z-index: 10;
+}
+#overlay.open { display: flex; }
+#panel {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  width: min(960px, 100%); max-height: 92vh; overflow-y: auto; padding: 14px;
+}
+#panel .top { display: flex; align-items: baseline; gap: 10px; }
+#panel h3 { margin: 0; font-size: 15px; }
+#panel .top .mono { color: var(--dim); }
+#panel .close { margin-left: auto; }
+#panel video { width: 100%; border-radius: 6px; background: #000; margin-top: 10px; }
+#panel .ribbon { margin-top: 6px; border-radius: 2px; }
+#panel .row2 { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
+#panel .hint { color: var(--faint); font-size: 12px; }
+#srcwrap { display: none; }
+
+@media (max-width: 640px) {
+  header, nav, main { padding-left: 12px; padding-right: 12px; }
+  #meta { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>shot<span>pilot</span></h1>
+  <div id="totals"></div>
+  <div id="meta">
+    <span id="stamp"></span>
+    <button id="refresh">Refresh</button>
+  </div>
+</header>
+<nav>
+  <a href="#selects" data-tab="selects">Selects<b id="n-selects"></b></a>
+  <a href="#cuts" data-tab="cuts">Cuts<b id="n-cuts"></b></a>
+  <a href="#inputs" data-tab="inputs">Inputs<b id="n-inputs"></b></a>
+</nav>
+<main id="main"><div class="msg">Loading…</div></main>
+
+<div id="overlay">
+  <div id="panel"></div>
+</div>
+
+<script>
+"use strict";
+let DATA = null;
+const $ = (sel, el) => (el || document).querySelector(sel);
+const state = { q: "", stars: 0, rejected: false };
+
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "class") el.className = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (v !== null && v !== undefined) el.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) {
+    if (kid === null || kid === undefined) continue;
+    el.append(kid.nodeType ? kid : document.createTextNode(kid));
+  }
+  return el;
+}
+
+const fmtS = s => s == null ? "?" : (s >= 60
+  ? `${Math.floor(s / 60)}:${String((s % 60).toFixed(1)).padStart(4, "0")}`
+  : `${(+s).toFixed(1)}s`);
+const stem = f => f.split("/").pop().replace(/\.[^.]+$/, "");
+
+function stars(n) {
+  const el = h("span", { class: "stars" });
+  for (let i = 1; i <= 5; i++)
+    el.append(h("span", { class: i <= (n || 0) ? "" : "off" }, i <= (n || 0) ? "★" : "☆"));
+  return el;
+}
+
+function ribbon(sel) {
+  const src = DATA.inputs.find(i => i.file === sel.source);
+  if (!src || !src.duration || !sel.range) return null;
+  const l = (sel.range[0] / src.duration) * 100;
+  const w = Math.max(((sel.range[1] - sel.range[0]) / src.duration) * 100, 0.8);
+  return h("div", { class: "ribbon", title: `${sel.range[0]}–${sel.range[1]}s of ${fmtS(src.duration)} source` },
+    h("i", { style: `left:${l}%;width:${w}%` }));
+}
+
+function tagChips(sel) {
+  const t = sel.tags;
+  if (!t) return [h("span", { class: "chip untagged" }, "untagged")];
+  const out = ["scene", "shot", "light"].filter(k => t[k])
+    .map(k => h("span", { class: "chip" }, t[k]));
+  if (t.role) out.push(h("span", { class: "chip role" }, "+" + t.role));
+  return out;
+}
+
+function thumbEl(sel) {
+  return sel.exists
+    ? h("img", { src: sel.thumb, loading: "lazy", alt: sel.label })
+    : h("div", { class: "missing" }, "file missing");
+}
+
+/* ---------------------------------------------------------------- selects */
+function viewSelects(main) {
+  const sels = DATA.selects;
+  if (!sels.length) {
+    main.append(h("div", { class: "msg" }, "No selects yet — cut some with ", h("code", {}, "shot select"), "."));
+    return;
+  }
+  main.append(h("div", { id: "filters" },
+    h("input", { type: "text", placeholder: "Filter: label, source, tag…", value: state.q,
+      oninput: e => { state.q = e.target.value.toLowerCase(); render(); } }),
+    h("select", { onchange: e => { state.stars = +e.target.value; render(); } },
+      [0, 1, 2, 3, 4, 5].map(n => h("option", { value: n, selected: state.stars === n ? "" : null },
+        n ? "★".repeat(n) + " and up" : "any stars"))),
+    h("label", {},
+      h("input", { type: "checkbox", checked: state.rejected ? "" : null,
+        onchange: e => { state.rejected = e.target.checked; render(); } }),
+      "show rejected")));
+  const match = s => {
+    if (s.reject && !state.rejected) return false;
+    if ((s.stars || 0) < state.stars) return false;
+    if (!state.q) return true;
+    const t = s.tags ? Object.values(s.tags).join(" ") : "";
+    return `${s.label} ${s.source} ${t} ${s.notes || ""}`.toLowerCase().includes(state.q);
+  };
+  const shown = sels.filter(match);
+  const grid = h("div", { id: "grid" });
+  for (const s of shown) grid.append(card(s));
+  main.append(grid);
+  if (!shown.length) main.append(h("div", { class: "msg" }, "Nothing matches the filter."));
+}
+
+function card(s) {
+  const variants = Object.keys(s.speed_variants || {});
+  return h("div", { class: "card" + (s.reject ? " reject" : ""), onclick: () => openPreview(s) },
+    h("div", { class: "ph" }, thumbEl(s),
+      h("span", { class: "dur" }, fmtS(s.duration_s))),
+    ribbon(s),
+    h("div", { class: "body" },
+      h("div", { class: "top" }, h("span", { class: "label" }, s.label), stars(s.stars)),
+      h("div", { class: "src" }, `${s.source_stem}  [${s.range[0]}–${s.range[1]}s]`),
+      h("div", { class: "chips" }, tagChips(s),
+        variants.map(v => h("span", { class: "chip var" }, "x" + v))),
+      s.notes ? h("div", { class: "note" }, s.notes) : null,
+      h("div", { class: "facts" },
+        h("span", {}, s.pace_pct_s ? `pace ${s.pace_pct_s} %/s` : "pace ?"))));
+}
+
+/* ------------------------------------------------------------------- cuts */
+function viewCuts(main) {
+  const names = Object.keys(DATA.cuts);
+  if (!names.length || names.every(n => !DATA.cuts[n].sequence_len)) {
+    main.append(h("div", { class: "msg" }, "No sequences yet — arrange one with ", h("code", {}, "shot sequence"), "."));
+    return;
+  }
+  const bySelect = Object.fromEntries(DATA.selects.map(s => [s.file, s]));
+  for (const name of names) {
+    const c = DATA.cuts[name];
+    const r = c.render || { state: "none" };
+    const target = c.target_s
+      ? ` / target ${fmtS(c.target_s)} (Δ ${(c.sequence_s - c.target_s).toFixed(1)}s)` : "";
+    const head = h("div", { class: "head" },
+      h("h2", {}, name === "main" ? "main montage" : name),
+      h("span", { class: "mono" }, `${c.sequence_len} clips · ${fmtS(c.sequence_s)}${target}`),
+      h("span", { class: "state " + r.state, title: r.reason || "" },
+        `render: ${r.state}${r.draft ? " (draft)" : ""}`),
+      c.music && (c.music.tracks || c.music.applied.state !== "none")
+        ? h("span", { class: "state " + c.music.applied.state, title: c.music.applied.reason || "" },
+            `music: ${c.music.tracks} track${c.music.tracks === 1 ? "" : "s"}, applied ${c.music.applied.state}`)
+        : null,
+      h("div", { class: "play" },
+        c.render_exists && c.render_url
+          ? h("button", { onclick: () => openVideo(`${name} — render`, c.render_url) }, "▸ render") : null,
+        c.final_url
+          ? h("button", { onclick: () => openVideo(`${name} — with music`, c.final_url) }, "▸ final") : null));
+    const cut = h("div", { class: "cut" }, head);
+    if (c.notes) cut.append(h("div", { class: "cnote" }, "note: " + c.notes));
+    if (c.sequence.length) {
+      const rows = []; let at = 0;
+      for (const e of c.sequence) {
+        const sel = bySelect[e.select];
+        const speed = sel && e.use !== sel.file
+          ? Object.entries(sel.speed_variants || {}).find(([, v]) => v === e.use)?.[0] : null;
+        rows.push(h("tr", { class: "row" + (e.use_exists ? "" : " gone"),
+            onclick: () => sel ? openPreview(sel, e.use) : (e.use_url && openVideo(stem(e.use), e.use_url)) },
+          h("td", { class: "n" }, e.n),
+          h("td", {}, sel && sel.exists ? h("img", { src: sel.thumb, loading: "lazy", alt: "" }) : null),
+          h("td", {}, sel ? sel.label : stem(e.use),
+            e.use_exists ? null : h("span", { class: "badge", style: "margin-left:8px" }, "missing")),
+          h("td", {}, speed ? h("span", { class: "badge" }, "x" + speed) : null),
+          h("td", { class: "t" }, fmtS(e.duration_s)),
+          h("td", { class: "t" }, "@ " + fmtS(at)),
+          h("td", {}, stars(e.stars)),
+          h("td", {}, h("div", { class: "chips" }, tagChips({ tags: e.tags })))));
+        at += e.duration_s || 0;
+      }
+      cut.append(h("table", {},
+        h("thead", {}, h("tr", {}, ["#", "", "clip", "", "dur", "start", "stars", "tags"].map(t => h("th", {}, t)))),
+        h("tbody", {}, rows)));
+    }
+    main.append(cut);
+  }
+}
+
+/* ----------------------------------------------------------------- inputs */
+function viewInputs(main) {
+  if (!DATA.inputs.length) {
+    main.append(h("div", { class: "msg" },
+      `No videos in ${DATA.input_dir}/ — SD card unplugged?`));
+    return;
+  }
+  const rows = DATA.inputs.map(i => {
+    const noSel = i.analyzed && !i.selects.length;
+    const warns = (i.warnings || []).length;
+    const tr = h("tr", { class: noSel ? "nosel" : "" },
+      h("td", { class: "mono" }, i.file.split("/").pop()),
+      h("td", {}, i.analyzed ? "✓" : "·"),
+      h("td", { class: "t" }, i.analyzed ? fmtS(i.duration) : ""),
+      h("td", { class: "t" }, i.kept_pct != null ? i.kept_pct + "%" : ""),
+      h("td", {}, warns ? h("span", { class: "warn", title: "show",
+        onclick: e => { e.stopPropagation();
+          const ul = h("ul", { class: "warnlist" }, i.warnings.map(w => h("li", {}, w)));
+          e.target.replaceWith(ul); } }, `⚠ ${warns}`) : ""),
+      h("td", {}, i.contact_url ? h("a", { href: i.contact_url, target: "_blank" }, "contact sheet") : ""),
+      h("td", {}, h("div", { class: "chips" },
+        i.selects.map(f => {
+          const sel = DATA.selects.find(s => s.file === f);
+          return h("span", { class: "chip", style: "cursor:pointer",
+            onclick: () => sel && openPreview(sel) }, sel ? sel.label : stem(f));
+        }),
+        noSel ? h("span", { class: "chip untagged" }, "no selects") : null)));
+    return tr;
+  });
+  main.append(h("div", { class: "cut" }, h("table", {},
+    h("thead", {}, h("tr", {}, ["file", "scan", "dur", "kept", "", "artifacts", "selects"].map(t => h("th", {}, t)))),
+    h("tbody", {}, rows))));
+}
+
+/* ---------------------------------------------------------------- preview */
+function closePreview() {
+  for (const v of document.querySelectorAll("#panel video")) { v.pause(); v.removeAttribute("src"); v.load(); }
+  $("#overlay").classList.remove("open");
+}
+
+function panelShell(title, sub) {
+  const panel = $("#panel");
+  panel.replaceChildren(h("div", { class: "top" },
+    h("h3", {}, title), sub ? h("span", { class: "mono" }, sub) : null,
+    h("button", { class: "close", onclick: closePreview }, "Close")));
+  $("#overlay").classList.add("open");
+  return panel;
+}
+
+function openVideo(title, url) {
+  const panel = panelShell(title);
+  panel.append(h("video", { controls: "", autoplay: "", preload: "metadata", src: url }));
+}
+
+function openPreview(sel, use) {
+  const url = use && use !== sel.file
+    ? (Object.entries(sel.speed_variants || {}).find(([, v]) => v === use)
+        ? sel.speed_variant_urls[Object.entries(sel.speed_variants).find(([, v]) => v === use)[0]]
+        : sel.url)
+    : sel.url;
+  const panel = panelShell(sel.label, `${sel.source_stem} [${sel.range[0]}–${sel.range[1]}s]`);
+  if (sel.exists && url) panel.append(h("video", { controls: "", autoplay: "", preload: "metadata", src: url }));
+  else panel.append(h("div", { class: "msg" }, "select file missing on disk"));
+  const rb = ribbon(sel);
+  if (rb) panel.append(rb);
+  const row = h("div", { class: "row2" });
+  for (const [k, u] of Object.entries(sel.speed_variant_urls || {}))
+    if (u) row.append(h("button", { onclick: () => swapVideo(panel, u) }, `play x${k}`));
+  if (sel.url) row.append(h("button", { onclick: () => swapVideo(panel, sel.url) }, "play original"));
+  if (sel.source_exists && sel.source_url) {
+    row.append(h("button", { onclick: () => toggleSource(panel, sel) }, `Open source at ${sel.range[0]}s`));
+  } else {
+    row.append(h("span", { class: "hint" }, "source offline — SD card?"));
+  }
+  panel.append(row);
+  if (sel.notes) panel.append(h("div", { class: "row2 hint" }, sel.notes));
+  const lower = sel.source.toLowerCase();
+  if (/\.(mts|mkv|avi)$/.test(lower))
+    panel.append(h("div", { class: "row2 hint" }, "source format may not play in-browser"));
+  panel.append(h("div", { id: "srcwrap" }));
+}
+
+function swapVideo(panel, url) {
+  const v = $("video", panel);
+  if (v) { v.src = url; v.play(); }
+}
+
+function toggleSource(panel, sel) {
+  const wrap = $("#srcwrap", panel);
+  if (wrap.style.display === "block") { wrap.style.display = "none"; return; }
+  wrap.style.display = "block";
+  if (!$("video", wrap)) {
+    const v = h("video", { controls: "", preload: "metadata",
+                           src: sel.source_url + "#t=" + sel.range[0] });
+    wrap.replaceChildren(
+      h("div", { class: "row2" },
+        h("span", { class: "hint" }, "source: " + sel.source),
+        h("button", { onclick: () => { v.currentTime = sel.range[0]; v.play(); } }, `⇤ ${sel.range[0]}s`),
+        h("button", { onclick: () => { v.currentTime = sel.range[1]; } }, `${sel.range[1]}s ⇥`)),
+      v);
+  }
+}
+
+/* ----------------------------------------------------------------- render */
+function render() {
+  const tab = (location.hash || "#selects").slice(1);
+  for (const a of document.querySelectorAll("nav a"))
+    a.classList.toggle("active", a.dataset.tab === tab);
+  const main = $("#main");
+  main.replaceChildren();
+  if (!DATA) { main.append(h("div", { class: "msg" }, "Loading…")); return; }
+  ({ selects: viewSelects, cuts: viewCuts, inputs: viewInputs }[tab] || viewSelects)(main);
+}
+
+async function load() {
+  try {
+    const res = await fetch("/api/status");
+    if (!res.ok) throw new Error(res.status + " " + res.statusText);
+    DATA = await res.json();
+  } catch (e) {
+    $("#main").replaceChildren(h("div", { class: "msg" }, "Cannot load /api/status — " + e.message));
+    return;
+  }
+  const t = DATA.totals;
+  $("#totals").textContent =
+    `${t.analyzed}/${t.inputs} analyzed · ${t.selects} selects (${fmtS(t.selects_total_s)}) · ${t.tagged} tagged` +
+    (t.rejected ? ` · ${t.rejected} rejected` : "");
+  $("#stamp").textContent = DATA.generated_at.replace("T", " ");
+  $("#n-selects").textContent = t.selects;
+  $("#n-cuts").textContent = Object.values(DATA.cuts).filter(c => c.sequence_len).length;
+  $("#n-inputs").textContent = t.inputs;
+  render();
+}
+
+$("#refresh").addEventListener("click", load);
+$("#overlay").addEventListener("click", e => { if (e.target.id === "overlay") closePreview(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closePreview(); });
+window.addEventListener("hashchange", render);
+load();
+</script>
+</body>
+</html>

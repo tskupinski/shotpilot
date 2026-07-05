@@ -7,7 +7,8 @@ set -eu
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 SMOKE_DIR=$(mktemp -d)
-trap 'rm -rf "$SMOKE_DIR"' EXIT
+UI_PID=""
+trap 'kill $UI_PID 2>/dev/null; rm -rf "$SMOKE_DIR"' EXIT
 cd "$SMOKE_DIR"
 mkdir -p input
 
@@ -35,7 +36,7 @@ assert_json() {  # assert_json '<expr on d>' <<< json
 
 $PY "$ROOT/tests/make_test_video.py" "$SYN" >&2
 
-echo "[1/16] scan (+ contact sheet in a single pass)" >&2
+echo "[1/17] scan (+ contact sheet in a single pass)" >&2
 $SHOT scan "$SYN" --force --json 2>/dev/null \
     | assert_json "d['results'][0]['stats']['n_segments'] == 3"
 [ -f output/test_synthetic/contact.png ] || fail "scan did not generate contact.png"
@@ -46,20 +47,20 @@ ffmpeg -nostdin -y -v error -f lavfi -i "testsrc2=size=640x360:rate=30:duration=
 $SHOT scan "$TINY" --json 2>/dev/null \
     | assert_json "d['results'][0]['stats']['n_segments'] == 0"
 
-echo "[2/16] jitter" >&2
+echo "[2/17] jitter" >&2
 $SHOT jitter "$SYN" --from 9 --to 11 --json 2>/dev/null \
     | assert_json "d['verdict'] == 'jitter'"
 $SHOT jitter "$SYN" --from 14 --to 16 --json 2>/dev/null \
     | assert_json "d['verdict'] == 'smooth-maneuver'"
 
-echo "[3/16] sheet (cache) + frames" >&2
+echo "[3/17] sheet (cache) + frames" >&2
 $SHOT sheet "$SYN" --json 2>sheet.err \
     | assert_json "d['results'][0]['sheet'].endswith('contact.png')"
 grep -q "cache" sheet.err || fail "sheet did not use the cache after scan"
 $SHOT frames "$SYN" 1 15 --json 2>/dev/null \
     | assert_json "len(d['frames']) == 2"
 
-echo "[4/16] select (single + --plan resume)" >&2
+echo "[4/17] select (single + --plan resume)" >&2
 $SHOT select "$SYN" 13 18 --label smoke --stars 1 --note "smoke test" --json 2>/dev/null \
     | assert_json "d['range'] == [13.0, 18.0] and d['stars'] == 1"
 [ -f "$SEL" ] || fail "select file missing"
@@ -71,7 +72,7 @@ $SHOT select --plan plan.jsonl --json 2>/dev/null \
 [ -f "$SEL2" ] || fail "select --plan did not cut the missing select"
 $SHOT select --plan plan.jsonl --label x 2>/dev/null && fail "select --plan accepted --label" || true
 
-echo "[5/16] pace (source motion reuse + profile) + speed + guard" >&2
+echo "[5/17] pace (source motion reuse + profile) + speed + guard" >&2
 $SHOT pace "$SEL" --profile --json 2>pace.err \
     | assert_json "d['results'][0]['pace']['total_pct_s'] > 0 and d['results'][0]['profile']['windows'] and 't0_src' in d['results'][0]['profile']['windows'][0]"
 grep -q "motion.csv" pace.err || fail "pace did not reuse the source's motion.csv via the manifest"
@@ -80,11 +81,11 @@ $SHOT speed "$SEL" 2 --json 2>/dev/null \
 $SHOT speed "$SELX2" 2 2>/dev/null \
     && fail "speed did not refuse on an _x2 variant" || true
 
-echo "[6/16] status" >&2
+echo "[6/17] status" >&2
 $SHOT status --json 2>/dev/null \
     | assert_json "any(s['label'] == 'smoke' and s['speed_variants'] for s in d['selects'])"
 
-echo "[7/16] tag" >&2
+echo "[7/17] tag" >&2
 $SHOT tag "$SEL" --scene synthetic --shot panorama --light midday --json 2>/dev/null \
     | assert_json "d['results'][0]['tags'] == {'scene': 'synthetic', 'shot': 'panorama', 'light': 'midday'}"
 $SHOT tag "$SEL" --scene "Bad Tags" 2>/dev/null && fail "tag accepted non-kebab-case" || true
@@ -101,7 +102,7 @@ $SHOT tag "$SEL2" --reject --unreject 2>/dev/null && fail "tag accepted --reject
 $SHOT tag "$SEL2" --unreject --json 2>/dev/null \
     | assert_json "d['results'][0]['reject'] is False"
 
-echo "[8/16] sequence + lint + target" >&2
+echo "[8/17] sequence + lint + target" >&2
 $SHOT sequence "$SEL2" "$SELX2" --target 30 --json 2>/dev/null \
     | assert_json "abs(d['total_s'] - 7.5) < 0.5 and d['target_s'] == 30 and any(w['type'] == 'adjacent_same_scene' for w in d['warnings']) and any(w['type'] == 'duration_off_target' for w in d['warnings'])"
 $SHOT sequence --target 8 --json 2>/dev/null \
@@ -123,7 +124,7 @@ $SHOT sequence --json 2>/dev/null \
     | assert_json "any(w['type']=='rejected_clip' for w in d['warnings']) and any(r['file'].endswith('smoke2.mp4') for r in d['rejected'])"
 $SHOT tag "$SEL2" --unreject >/dev/null 2>&1
 
-echo "[9/16] montage (draft --xfade 0 + crossfade + --smooth + skip/--force + --draft)" >&2
+echo "[9/17] montage (draft --xfade 0 + crossfade + --smooth + skip/--force + --draft)" >&2
 $SHOT montage --out "$MONT" --xfade 0 --json 2>/dev/null \
     | assert_json "abs(d['duration'] - 7.5) < 0.5 and d['clips'] == 2 and d['xfade'] == 0 and d['smooth'] is False"
 [ -f "$MONT" ] || fail "montage file missing"
@@ -184,7 +185,7 @@ $SHOT smooth smoke_30.mp4 --fps 60/1 --json 2>/dev/null \
 $SHOT status --json 2>/dev/null \
     | assert_json "d['cuts']['main']['render']['state'] == 'fresh'"
 
-echo "[10/16] locate (time->clip, reverse lookup, timeline)" >&2
+echo "[10/17] locate (time->clip, reverse lookup, timeline)" >&2
 $SHOT locate --json 2>/dev/null \
     | assert_json "len(d['timeline']) == 2 and abs(d['film_s'] - 6.5) < 0.6 and d['render']['state'] == 'fresh'"
 $SHOT locate 0:03 smoke2 --json 2>/dev/null \
@@ -199,7 +200,7 @@ $SHOT locate 0:03 --files "$MONT" --json 2>/dev/null \
     | assert_json "d['results'][0]['clip']['label'] == 'smoke_montage'"
 $SHOT locate 0:01 --files no/such/file.mp4 2>/dev/null && fail "locate --files accepted a nonexistent file" || true
 
-echo "[11/16] music (probe + mux + loop + staleness)" >&2
+echo "[11/17] music (probe + mux + loop + staleness)" >&2
 ffmpeg -nostdin -y -v error -f lavfi -i "sine=frequency=440:duration=12" "$MUSIC"
 $SHOT music --probe "$MUSIC" --json 2>/dev/null \
     | assert_json "abs(d['results'][0]['duration_s'] - 12) < 0.2 and d['results'][0]['energy'] and d['results'][0]['integrated_lufs'] is not None"
@@ -221,7 +222,42 @@ ffmpeg -nostdin -y -v error -f lavfi -i "sine=frequency=330:duration=3" "$MUSIC_
 $SHOT music "$MUSIC_SHORT" --loop --out "$FINAL" --json 2>/dev/null \
     | assert_json "d['looped'] and d['gap_s'] < 0.6 and abs(d['audio_s'] - d['video_s']) < 0.6"
 
-echo "[12/16] trim (re-cut from source + variant refresh + staleness + cut guard)" >&2
+echo "[12/17] ui (read-only server: api joins, range, thumb, guards)" >&2
+# pure helpers: Range parsing + path traversal guard
+$PY -c "
+from pathlib import Path
+from pipeline import webui as w
+assert w.parse_range(None, 100) is None
+assert w.parse_range('bytes=0-99', 1000) == (0, 99)
+assert w.parse_range('bytes=200-', 1000) == (200, 999)
+assert w.parse_range('bytes=-50', 1000) == (950, 999)
+assert w.parse_range('bytes=0-9,20-', 1000) is None       # multi-range -> full 200
+assert w.parse_range('garbage', 1000) is None
+try: w.parse_range('bytes=1000-', 1000); raise SystemExit(1)
+except ValueError: pass                                   # start beyond file -> 416
+assert w.safe_path('selects', Path('output')) is None     # directory, not a file
+assert w.safe_path('../input/test_synthetic.mp4', Path('output')) is None
+assert w.safe_path('%2e%2e/plan.jsonl', Path('output')) is None
+" || fail "webui pure helpers"
+PYTHONPATH="$ROOT" "$ROOT/.venv/bin/python" -m pipeline ui --port 0 --no-open --json >ui.json 2>/dev/null &
+UI_PID=$!
+for _ in 1 2 3 4 5 6 7 8 9 10; do [ -s ui.json ] && break; sleep 0.3; done
+PORT=$($PY -c "import json; print(json.load(open('ui.json'))['port'])") || fail "shot ui did not report a port"
+UI="http://127.0.0.1:$PORT"
+curl -s "$UI/api/status" \
+    | assert_json "d['selects'][0]['url'].startswith('/media/output/') and d['selects'][0]['thumb'].startswith('/thumb/') and d['selects'][0]['source_exists'] and d['inputs'][0]['selects'] and d['cuts']['main']['sequence'][0]['use_url']"
+[ "$(curl -s -o /dev/null -w '%{http_code} %{size_download}' -H 'Range: bytes=0-99' "$UI/media/output/selects/test_synthetic_smoke.mp4")" = "206 100" ] \
+    || fail "range request did not return 206 with 100 bytes"
+curl -s -o thumb.jpg "$UI/thumb/test_synthetic_smoke.jpg"
+[ -f output/ui-cache/thumbs/test_synthetic_smoke.jpg ] || fail "thumb did not land in output/ui-cache/thumbs/"
+[ "$(curl -s --path-as-is -o /dev/null -w '%{http_code}' "$UI/media/output/../plan.jsonl")" = "404" ] \
+    || fail "path traversal was not blocked"
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$UI/api/status")" = "405" ] \
+    || fail "POST was not refused"
+kill $UI_PID
+UI_PID=""
+
+echo "[13/17] trim (re-cut from source + variant refresh + staleness + cut guard)" >&2
 # the select also plays in a second cut -> trim must warn that it changes all cuts
 $SHOT sequence --cut smoke-b "$SEL" >/dev/null 2>&1
 $SHOT trim "$SEL" 14 17 --note "smoke trim" --json 2>trim.err \
@@ -237,7 +273,7 @@ $PY -c "from pipeline import manifest; manifest.remove('$SEL'); manifest.remove(
 $PY -c "from pipeline import manifest; assert manifest.get_cut()['sequence'] == []" \
     || fail "remove did not clear the montage sequence"
 
-echo "[13/16] config: custom input folder (isolated tmp)" >&2
+echo "[14/17] config: custom input folder (isolated tmp)" >&2
 TMP=$(mktemp -d)
 mkdir -p "$TMP/output" "$TMP/sdcard"
 touch "$TMP/sdcard/card.mp4"
@@ -261,7 +297,7 @@ run_tmp config --json \
     || fail "real env did not win over .env"
 rm -rf "$TMP"
 
-echo "[14/16] archive + restore (isolated tmp)" >&2
+echo "[15/17] archive + restore (isolated tmp)" >&2
 TMP=$(mktemp -d)
 mkdir -p "$TMP/output" "$TMP/input"
 echo '{"selects": []}' > "$TMP/output/project.json"
@@ -278,7 +314,7 @@ ARCH=$(ls "$TMP/archive")
 [ ! -d "$TMP/archive/$ARCH" ] || fail "empty archive was not cleaned up"
 rm -rf "$TMP"
 
-echo "[15/16] publish (thumbnail + description, isolated tmp)" >&2
+echo "[16/17] publish (thumbnail + description, isolated tmp)" >&2
 TMP=$(mktemp -d)
 mkdir -p "$TMP/output"
 ffmpeg -nostdin -y -v error -f lavfi -i "testsrc2=size=1920x1080:rate=24:duration=2" "$TMP/src.mp4"
@@ -310,7 +346,7 @@ run_pub publish --frame src.mp4 --at 99 --text "X" && fail "publish accepted a f
     && fail "publish assembled a description without a template" || true
 rm -rf "$TMP"
 
-echo "[16/16] validate (schema contract + negative test)" >&2
+echo "[17/17] validate (schema contract + negative test)" >&2
 # every mutator has already passed save-side validation by now (selects, tags,
 # sequence, render, music, trim, remove) — this checks the files on disk
 $SHOT validate --json 2>/dev/null \

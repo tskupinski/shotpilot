@@ -27,4 +27,4 @@ dependencies = [
 packages = ["pipeline"]
 
 [tool.setuptools.package-data]
-pipeline = ["schemas/*.schema.json"]
+pipeline = ["schemas/*.schema.json", "webui.html"]
