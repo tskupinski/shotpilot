@@ -3,7 +3,7 @@
 Single source of truth for the shapes of output/project.json ("project"),
 output/<stem>/summary.json ("summary") and config.json ("config"), and for the
 closed tag vocabularies — montage.py reads SHOTS/ROLES from here via tag_enum().
-Draft 2020-12; enforced by the writers' save hooks and by `vm validate`.
+Draft 2020-12; enforced by the writers' save hooks and by `shot validate`.
 """
 
 import functools

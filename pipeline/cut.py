@@ -1,4 +1,4 @@
-"""Cutting segments into separate files (ffmpeg, re-encode). CLI: `vm select`."""
+"""Cutting segments into separate files (ffmpeg, re-encode). CLI: `shot select`."""
 
 import sys
 from pathlib import Path

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "shotpilot/project.schema.json",
-  "$comment": "Contract for output/project.json. Writer: pipeline/manifest.py (validated in save()); explicit check: `vm validate`. Field criteria: docs/decision-rules.md.",
+  "$comment": "Contract for output/project.json. Writer: pipeline/manifest.py (validated in save()); explicit check: `shot validate`. Field criteria: docs/decision-rules.md.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "selects"],
@@ -91,7 +91,7 @@
         "clips": {"type": "integer", "minimum": 1},
         "xfade_s": {"type": "number", "minimum": 0},
         "smooth": {"type": "boolean"},
-        "draft": {"$comment": "true = preview-quality encode (vm montage --draft); music mux refuses it, status shows it", "type": "boolean"},
+        "draft": {"$comment": "true = preview-quality encode (shot montage --draft); music mux refuses it, status shows it", "type": "boolean"},
         "expected_s": {"type": "number"},
         "duration_s": {"type": "number"},
         "clip_durations_s": {"type": "array", "items": {"type": "number"}},

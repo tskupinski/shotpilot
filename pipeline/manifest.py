@@ -5,11 +5,11 @@ mood"), measured pace, speed variants, content tags (scene/shot/light/role)
 and montage cuts (top-level "cuts": name -> {sequence, target_s, render, music};
 "main" = the main montage, the rest = alternative versions — same machinery);
 also YT publish assets (top-level "publish": title, description, thumbnail).
-Read by `vm status`, updated by `vm select` / `vm tag` / `vm pace` / `vm speed`
-/ `vm trim` / `vm sequence` / `vm montage` / `vm music` / `vm publish`.
+Read by `shot status`, updated by `shot select` / `shot tag` / `shot pace` / `shot speed`
+/ `shot trim` / `shot sequence` / `shot montage` / `shot music` / `shot publish`.
 
 Shape contract: pipeline/schemas/project.schema.json (strict — unknown fields
-fail), validated on every save(); explicit check of files on disk: `vm validate`.
+fail), validated on every save(); explicit check of files on disk: `shot validate`.
 Schema bump: 1) _migrate_vN() + call in load(), 2) bump SCHEMA_VERSION,
 3) update the const and shapes in the schema file.
 """
@@ -29,7 +29,7 @@ MANIFEST_PATH = paths.MANIFEST
 
 @contextmanager
 def _lock():
-    """Exclusive read-modify-write — parallel vm select/speed don't overwrite each other."""
+    """Exclusive read-modify-write — parallel shot select/speed don't overwrite each other."""
     MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(MANIFEST_PATH.with_suffix(".lock"), "w") as f:
         fcntl.flock(f, fcntl.LOCK_EX)

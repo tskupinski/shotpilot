@@ -1,0 +1,3 @@
+#!/bin/sh
+# shot — agent-first CLI for Shotpilot (wrapper around .venv + python -m pipeline)
+exec "$(dirname "$0")/.venv/bin/python" -m pipeline "$@"

@@ -1,4 +1,4 @@
-"""vm — agent-first CLI for Shotpilot.
+"""shot — agent-first CLI for Shotpilot.
 
 Conventions (all subcommands):
 - `--json`: JSON result on stdout; logs always on stderr
@@ -151,7 +151,7 @@ def cmd_status(args) -> int:
         th_disp = (f"✓ ({Path(th['source']).name} @ {th['at_s']:g}s)" if th else "—")
         desc_disp = "✓" if pub.get("description_file") else "—"
         if not pub.get("description_file") and (paths.PUBLISH / "description.txt").exists():
-            desc_disp = "— (file exists, no manifest entry — see `vm publish`)"
+            desc_disp = "— (file exists, no manifest entry — see `shot publish`)"
         lines.append(f"Publishing: title {'✓' if pub.get('title') else '—'}, "
                      f"description {desc_disp}, "
                      f"thumbnail {th_disp}")
@@ -285,7 +285,7 @@ def cmd_select(args) -> int:
     if args.plan:
         return _select_plan(args)
     if args.file is None or args.start is None or args.end is None or not args.label:
-        log("usage: vm select FILE START END --label X  (or: vm select --plan PLAN.jsonl)")
+        log("usage: shot select FILE START END --label X  (or: shot select --plan PLAN.jsonl)")
         return 1
     try:
         found = _select_one(args.file, args.start, args.end, args.label,
@@ -391,7 +391,7 @@ def cmd_tag(args) -> int:
     def one(f: Path) -> dict:
         entry = manifest.find(f)
         if entry is None:
-            raise ValueError("not in the manifest — run vm select first")
+            raise ValueError("not in the manifest — run shot select first")
         fields = {}
         if tags:
             fields["tags"] = {**(entry.get("tags") or {}), **tags}
@@ -447,7 +447,7 @@ def cmd_trim(args) -> int:
         log(f"WARNING: the select appears in {len(shared)} cuts ({', '.join(shared)}) — "
             f"trim will change it in ALL of them (renders become stale). "
             f"For a single-version variant: a separate select from the source "
-            f"(vm select SOURCE A B --label ...)")
+            f"(shot select SOURCE A B --label ...)")
     log(f"Re-cut from source {args.start:g}–{args.end:g}s -> {f} ...")
     cut_range(info, args.start, args.end, f)
 
@@ -552,7 +552,7 @@ def cmd_montage(args) -> int:
 
     With --files CLIP...: renders an explicit list to --out (external version) — does
     NOT touch the manifest (separate short/long cuts/variants; timeline via
-    `vm locate --files`).
+    `shot locate --files`).
     """
     if args.xfade < 0:
         log("--xfade cannot be negative")
@@ -568,7 +568,7 @@ def cmd_montage(args) -> int:
         mont = manifest.get_cut(manifest.load(), args.cut)
         seq = mont.get("sequence", [])
         if not seq:
-            log(f"cut \"{args.cut}\" sequence is empty — `vm sequence --cut {args.cut} "
+            log(f"cut \"{args.cut}\" sequence is empty — `shot sequence --cut {args.cut} "
                 f"FILE...` or provide `--files CLIP...`")
             return 1
         files = [Path(e["use"]) for e in seq]
@@ -609,7 +609,7 @@ def cmd_montage(args) -> int:
         for mm in mismatches:
             log(f"non-uniform clip: {mm['file']} — {mm['field']}={mm['value']} "
                 f"(expected {mm['expected']})")
-        log("fix by re-rendering the clip (vm select / vm speed) — do not force the splice")
+        log("fix by re-rendering the clip (shot select / shot speed) — do not force the splice")
         return 1
     durs = [float(x.get("duration", 0)) for x in fields]
     if xfade > 0:
@@ -691,7 +691,7 @@ def cmd_smooth(args) -> int:
         seq = manifest.get_cut(manifest.load(), args.cut).get("sequence", [])
         if not seq:
             log(f"cut \"{args.cut}\" sequence is empty — provide CLIP... "
-                f"or set `vm sequence --cut {args.cut}`")
+                f"or set `shot sequence --cut {args.cut}`")
             return 1
         files = [Path(e["use"]) for e in seq]
     missing = [str(f) for f in files if not f.exists()]
@@ -729,7 +729,7 @@ def cmd_locate(args) -> int:
     else:
         mont = manifest.get_cut(data, args.cut)
         if not mont.get("sequence"):
-            log(f"cut \"{args.cut}\" sequence is empty — `vm sequence --cut {args.cut} "
+            log(f"cut \"{args.cut}\" sequence is empty — `shot sequence --cut {args.cut} "
                 f"FILE...` or provide `--files FILE...`")
             return 1
         state = montage_mod.render_state(mont)
@@ -812,11 +812,11 @@ def _music_apply(args, tracks: list[Path]) -> int:
     if rstate["state"] != montage_mod.STATE_FRESH:
         reason = f" ({rstate['reason']})" if rstate.get("reason") else ""
         log(f"cut \"{args.cut}\" render: {rstate['state']}{reason} — first run "
-            f"`vm montage{'' if args.cut == 'main' else f' --cut {args.cut}'}`")
+            f"`shot montage{'' if args.cut == 'main' else f' --cut {args.cut}'}`")
         return 1
     if rstate.get("draft"):
         log(f"cut \"{args.cut}\" render is a --draft preview — render the final "
-            f"`vm montage{'' if args.cut == 'main' else f' --cut {args.cut}'}` "
+            f"`shot montage{'' if args.cut == 'main' else f' --cut {args.cut}'}` "
             f"before muxing music")
         return 1
     video = Path(mont["render"]["out"])
@@ -885,7 +885,7 @@ def cmd_music(args) -> int:
                                  cut=args.cut)
         if not args.apply:
             emit({"file": str(out), "duration_s": real, "prompt": args.generate},
-                 args.json, f"{out} ({real:g} s) — apply with: vm music {out}")
+                 args.json, f"{out} ({real:g} s) — apply with: shot music {out}")
             return 0
         tracks = [out]
 
@@ -901,7 +901,7 @@ def cmd_music(args) -> int:
     balance = music_mod.account_balance()
     payload = {"tracks": track_rows, "applied": music.get("applied"),
                "state": state, "balance_credits": balance}
-    lines = [f"Tracks ({len(track_rows)}):"] if track_rows else ["No tracks — `vm music --generate \"PROMPT\"`"]
+    lines = [f"Tracks ({len(track_rows)}):"] if track_rows else ["No tracks — `shot music --generate \"PROMPT\"`"]
     for t in track_rows:
         mark = "✓" if t["exists"] else "✗"
         lines.append(f"  {mark} {t['file']} ({t.get('duration_s', '?')} s) — {t.get('prompt', '')}")
@@ -991,7 +991,7 @@ def cmd_publish(args) -> int:
                "thumbnail": th,
                "thumbnail_exists": bool(th and Path(th["file"]).exists()),
                "template": str(tpl), "template_exists": tpl.exists()}
-    lines = [f"Title: {pub.get('title') or '— (vm publish --title ...)'}",
+    lines = [f"Title: {pub.get('title') or '— (shot publish --title ...)'}",
              "Description: " + (f"{desc}{'' if payload['description_exists'] else ' (FILE MISSING)'}"
                          if desc else
                          ("— BUT output/publish/description.txt exists without a manifest "
@@ -1059,7 +1059,7 @@ def cmd_archive(args) -> int:
 
 
 def cmd_restore(args) -> int:
-    """Inverse of vm archive: moves state from the archive back into the project."""
+    """Inverse of shot archive: moves state from the archive back into the project."""
     src = Path(args.archive)
     if not src.exists():
         src = paths.ARCHIVE / args.archive
@@ -1068,7 +1068,7 @@ def cmd_restore(args) -> int:
         return 1
     out_dir = paths.OUTPUT
     if out_dir.exists() and any(out_dir.iterdir()):
-        log("output/ is not empty — first `vm archive <name>` for the current state")
+        log("output/ is not empty — first `shot archive <name>` for the current state")
         return 1
     if out_dir.exists():
         out_dir.rmdir()
@@ -1159,7 +1159,7 @@ def cmd_validate(args) -> int:
 # ------------------------------------------------------------------- parser
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="vm", description=__doc__,
+    p = argparse.ArgumentParser(prog="shot", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
 
@@ -1283,9 +1283,9 @@ def build_parser() -> argparse.ArgumentParser:
                          "the requested parameters")
     sp.add_argument("--files", nargs="*", type=Path, default=[], metavar="CLIP",
                     help="render an explicit clip list to --out (external version, does "
-                         "not touch the manifest); check the timeline via `vm locate --files`")
+                         "not touch the manifest); check the timeline via `shot locate --files`")
 
-    sp = add("smooth", "warm the motion-interpolation cache (before `vm montage --smooth`)",
+    sp = add("smooth", "warm the motion-interpolation cache (before `shot montage --smooth`)",
              cmd_smooth)
     sp.add_argument("files", nargs="*", type=Path, default=[], metavar="CLIP",
                     help="clips to smooth (default: the cut's sequence)")
@@ -1386,7 +1386,7 @@ def main(argv: list[str] | None = None) -> int:
             for line in err.strip().splitlines()[-5:]:
                 log(f"  {line}")
         tool = Path(str(e.cmd[0])).name if e.cmd else "subprocess"
-        log(f"`vm {args.cmd}` aborted: {tool} exited with an error "
+        log(f"`shot {args.cmd}` aborted: {tool} exited with an error "
             f"(exit {e.returncode})")
         return 1
 

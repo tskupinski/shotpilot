@@ -1,4 +1,4 @@
-"""Music for the assembled film. CLI: `vm music`.
+"""Music for the assembled film. CLI: `shot music`.
 
 Three operations: track generation (Stable Audio via the Stability API, key
 in env STABILITY_API_KEY), track analysis for the agent (`probe_track` — duration,
@@ -68,13 +68,13 @@ def generate_track(prompt: str, duration_s: float, out: Path) -> Path:
     if not 1 <= duration_s <= MAX_DURATION_S:
         raise ValueError(f"duration {duration_s:g} s outside the range 1–{MAX_DURATION_S} s "
                          f"(single-generation limit); for a longer film: --loop when muxing "
-                         f"or several parts (vm music TRACK1 TRACK2 ...)")
+                         f"or several parts (shot music TRACK1 TRACK2 ...)")
     body, ctype = _multipart({"prompt": prompt, "duration": int(round(duration_s)),
                               "output_format": "mp3", "model": MODEL})
     req = urllib.request.Request(API_URL, data=body, headers={
         "authorization": f"Bearer {key}", "accept": "audio/*", "content-type": ctype,
         # Cloudflare in front of api.stability.ai rejects urllib's default UA (403)
-        "user-agent": "shotpilot-vm/1.0"})
+        "user-agent": "shotpilot/1.0"})
     try:
         with urllib.request.urlopen(req, timeout=300) as resp:
             audio = resp.read()
@@ -93,7 +93,7 @@ def account_balance() -> int | None:
     if not key:
         return None
     req = urllib.request.Request(BALANCE_URL, headers={
-        "authorization": f"Bearer {key}", "user-agent": "shotpilot-vm/1.0"})
+        "authorization": f"Bearer {key}", "user-agent": "shotpilot/1.0"})
     try:
         with urllib.request.urlopen(req, timeout=5) as resp:
             return int(json.loads(resp.read())["credits"])

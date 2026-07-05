@@ -3,13 +3,13 @@
 Agent-first pipeline from drone footage to an edited film: smoothness analysis
 (OpenCV), aesthetic and pacing review, cutting selects, content tags, sequencing,
 splicing (ffmpeg), music (AI generation + mux) and YouTube publishing assets
-(`vm publish`: thumbnail + title + description). Current stage: the full cycle
+(`shot publish`: thumbnail + title + description). Current stage: the full cycle
 selection → pacing → montage with crossfade transitions → music → publishing.
 
 ## First command of every session
 
 ```sh
-./vm status          # or --json
+./shot status          # or --json
 ```
 
 Shows the whole project state: inputs (analyzed?), selects with ★ ratings,
@@ -17,43 +17,43 @@ decision notes, speed variants and the montage target. **The manifest
 `output/project.json` is the source of truth for decisions** (source ranges,
 stars, "stays slow — mood") — do not reconstruct them from memory or chat history.
 
-## CLI: `./vm <command>` (wrapper around `.venv/bin/python -m pipeline`)
+## CLI: `./shot <command>` (wrapper around `.venv/bin/python -m pipeline`)
 
 Conventions (all commands): `--json` = result on stdout, logs always on stderr
 (batch commands wrap results in `{"results": [...]}`, single-file ones return
 a bare object); native batch (many files as arguments — **do not write shell
 loops**); exit != 0 on error. Below is only an index — **take flag semantics
-from `./vm <command> --help`**, not from memory; decision criteria from
+from `./shot <command> --help`**, not from memory; decision criteria from
 `docs/decision-rules.md`; workflows from the skills.
 
 ```sh
-./vm status           # project dashboard: inputs, selects, sequence, render, music, publishing
-./vm scan FILE...     # smoothness analysis + contact.png in one pass (mtime cache)
-./vm sheet FILE...    # contact sheet alone (scan already makes one — don't run after scan)
-./vm frames FILE T... # 1280px evaluation frames -> output/<stem>/frames/
-./vm jitter FILE      # settles jitter vs smooth maneuver within a range
-./vm select FILE A B  # cut a select from the source + manifest entry (--label/--stars/--note);
+./shot status           # project dashboard: inputs, selects, sequence, render, music, publishing
+./shot scan FILE...     # smoothness analysis + contact.png in one pass (mtime cache)
+./shot sheet FILE...    # contact sheet alone (scan already makes one — don't run after scan)
+./shot frames FILE T... # 1280px evaluation frames -> output/<stem>/frames/
+./shot jitter FILE      # settles jitter vs smooth maneuver within a range
+./shot select FILE A B  # cut a select from the source + manifest entry (--label/--stars/--note);
                       # --plan PLAN.jsonl = batch of many selects, resumable (skips already-cut)
-./vm pace ...         # screen pace (%/s) + recommendation; --profile = dull stretches (DULL) for vm trim
-./vm speed CLIP N     # sped-up variant _xN (refuses on _x* files)
-./vm tag CLIP...      # content tags + metadata (instead of editing the manifest by hand); --reject/--unreject
-./vm trim CLIP A B    # trim a select: re-cut from the SOURCE, variants and pace refreshed automatically
-./vm sequence ...     # montage order (the files ACTUALLY spliced) + lint; --target SEC;
+./shot pace ...         # screen pace (%/s) + recommendation; --profile = dull stretches (DULL) for shot trim
+./shot speed CLIP N     # sped-up variant _xN (refuses on _x* files)
+./shot tag CLIP...      # content tags + metadata (instead of editing the manifest by hand); --reject/--unreject
+./shot trim CLIP A B    # trim a select: re-cut from the SOURCE, variants and pace refreshed automatically
+./shot sequence ...     # montage order (the files ACTUALLY spliced) + lint; --target SEC;
                       # --note/--append-note = persistent cut decision note; no args: preview
-./vm montage          # splice the sequence (crossfade = re-encode; --xfade 0 = stream-copy draft;
+./shot montage          # splice the sequence (crossfade = re-encode; --xfade 0 = stream-copy draft;
                       # --draft = fast preview encode with transitions; a fresh matching
                       # render is skipped (--force re-renders);
                       # --smooth = mixed-frame-rate interpolation; --files + --out = one-off
                       # ad-hoc render without touching the manifest)
-./vm smooth [CLIP...] # warm the interpolation cache in the background BEFORE the final `vm montage --smooth`
-./vm locate ...       # read-only: montage timeline <-> shots (TIME/FILE/full timeline; --files = external)
-./vm music ...        # --generate = track from Stable Audio (COSTS MONEY — gates in decision-rules "Music");
+./shot smooth [CLIP...] # warm the interpolation cache in the background BEFORE the final `shot montage --smooth`
+./shot locate ...       # read-only: montage timeline <-> shots (TIME/FILE/full timeline; --files = external)
+./shot music ...        # --generate = track from Stable Audio (COSTS MONEY — gates in decision-rules "Music");
                       # TRACK... = mux onto the render -> output/cuts/<cut>-final.mp4; --probe = analysis; no args: state
-./vm publish ...      # YT thumbnail (--frame, inspect the result via Read) / title + description
+./shot publish ...      # YT thumbnail (--frame, inspect the result via Read) / title + description
                       # (--title --description-file); no args: publishing state
-./vm archive NAME     # output/ -> archive/<date>_<name>/ + clean start; vm restore = the reverse
-./vm config           # input folder (--input-dir, e.g. an SD card); no flags shows the state
-./vm validate         # check manifest/summary/config files against the schema contract (pipeline/schemas/)
+./shot archive NAME     # output/ -> archive/<date>_<name>/ + clean start; shot restore = the reverse
+./shot config           # input folder (--input-dir, e.g. an SD card); no flags shows the state
+./shot validate         # check manifest/summary/config files against the schema contract (pipeline/schemas/)
 ```
 
 Cuts: `sequence`/`montage`/`smooth`/`locate`/`music` accept `--cut NAME`
@@ -62,7 +62,7 @@ render record and music in the manifest; render -> `output/cuts/<name>.mp4`
 (with music: `<name>-final.mp4`). Version workflow: skill `/version`.
 
 Selection workflow: skill `/shot-review`. Pacing: skill `/pace-review` (the
-`vm pace` recommendation is mechanical — adjusting for the shot's mood is the
+`shot pace` recommendation is mechanical — adjusting for the shot's mood is the
 agent's job). Montage: skill `/montage` (tagging → trim review → ordering →
 splice; by default ALL selects — variety comes from the ordering; optional
 casting against a target, which the agent asks about at the start — weaker clips
@@ -88,14 +88,14 @@ decisions per the codified rules, auditable report in `output/autopilot-report.m
   mechanics — the thumbnail comes from the source, not the render); `schema_version`
   is written by manifest.py; the shape contract is `pipeline/schemas/project.schema.json`
   (strict, validated on every save; closed tag vocabularies live THERE — montage.py
-  reads SHOTS/ROLES from it); on-demand check of all persistent JSON: `vm validate`
+  reads SHOTS/ROLES from it); on-demand check of all persistent JSON: `shot validate`
 - `config.json` (root, optional) — machine config (e.g. `input_dir` = an SD card);
-  excluded from archiving; write via `vm config`, not by hand
+  excluded from archiving; write via `shot config`, not by hand
 - `.env` (root, gitignored) — machine secrets (`STABILITY_API_KEY`); loaded at CLI
   startup, real env wins over the file; excluded from archiving and from git
 - `publish-template.txt` (root, gitignored) — your channel's YT description
   boilerplate (template to copy: `publish-template.example.txt` in git); excluded
-  from archiving; env `VM_PUBLISH_TEMPLATE` points to another file (mainly for tests)
+  from archiving; env `SHOT_PUBLISH_TEMPLATE` points to another file (mainly for tests)
 - `output/<stem>/` — per video: `summary.json` (+`warnings[]`), `review.png` and
   `contact.png` (**inspect via Read**), `report.html` (for humans),
   `segments.json`, `motion.csv` (motion-analysis cache), `frames/`
@@ -114,19 +114,19 @@ decisions per the codified rules, auditable report in `output/autopilot-report.m
 
 ## Environment and conventions
 
-- Python: always `.venv/bin/python` (or simply `./vm`); ffmpeg/ffprobe on PATH.
+- Python: always `.venv/bin/python` (or simply `./shot`); ffmpeg/ffprobe on PATH.
 - Git is set up (`.gitignore` protects `input/`, `output/`, `.env`). Test:
   `./tests/smoke.sh` (full cycle on synthetic footage, ~1 min; fully isolated
   in a temp dir — never touches the project's input/output/manifest) — run
   after every larger change in `pipeline/`, especially before committing.
 - If ffmpeg were ever invoked by hand in a shell loop: `-nostdin` (it eats the
-  loop's stdin). But that's what vm's native batch is for.
+  loop's stdin). But that's what shot's native batch is for.
 - Keep working files (your own scripts, logs, check frames) OUTSIDE `output/` —
   e.g. in `/tmp`: `output/` goes into the archive, and `rm` may be blocked.
 - Re-encode (h264 crf 18, uniform format for splicing) is a deliberate design
   decision — do not switch to stream copy when CUTTING from the source. Renders
-  of >30 s of footage — in the background; this includes the default `vm montage`
-  (crossfade = re-encode of everything). Exception: `vm montage --xfade 0` splices
+  of >30 s of footage — in the background; this includes the default `shot montage`
+  (crossfade = re-encode of everything). Exception: `shot montage --xfade 0` splices
   already-uniform clips with stream copy (that's what the uniformity was for) —
   the only render without re-encode, always foreground.
 
@@ -137,7 +137,7 @@ decisions per the codified rules, auditable report in `output/autopilot-report.m
 - The agent's aesthetic judgment is welcome (composition, light, subject, mood)
   with concrete ranges and the honest caveat that stills don't show motion pace.
 - Destructive decisions/renders — after approval; never overwrite originals.
-- Done with the footage → suggest `/project-archive` (`vm archive`).
+- Done with the footage → suggest `/project-archive` (`shot archive`).
   **Never `rm -rf output/`** — cleanup always via archiving (moves, not deletes).
 - Open topic for later: output structure for multiple projects (e.g. timestamped
   directories) — for now one project = one `output/` directory.
@@ -158,8 +158,8 @@ material, mixed frame rates, preferred language of communication) in
 file. Generic performance facts that hold for any setup:
 
 - Decoding for analysis uses an ffmpeg pipe (640 px); a scan also generates
-  contact.png in the same pass — don't run `vm sheet` after `vm scan`.
-- Caches by mtime: `motion.csv` and `contact.png`; `vm pace` on selects reuses
+  contact.png in the same pass — don't run `shot sheet` after `shot scan`.
+- Caches by mtime: `motion.csv` and `contact.png`; `shot pace` on selects reuses
   the source's motion via the manifest (seconds instead of decoding 4K).
 - 4K re-encode ≈ 4× real time; crf 18 gives a bitrate above typical drone
   sources (accepted; if size becomes a problem — crf 20).

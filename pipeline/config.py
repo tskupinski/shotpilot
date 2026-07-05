@@ -1,12 +1,12 @@
-"""vm configuration (config.json and .env at the project root).
+"""shot configuration (config.json and .env at the project root).
 
-Input folder priority: env VM_INPUT_DIR (one-off override)
+Input folder priority: env SHOT_INPUT_DIR (one-off override)
 > config.json > default `input/`. config.json holds only deviations from
 the defaults — it's a machine/session setting, not a project decision, so it
 is not archived (archive moves only output/).
 
 `.env` (gitignored, also outside archiving) holds machine secrets —
-e.g. STABILITY_API_KEY for `vm music`; loaded by `load_env()` at CLI startup,
+e.g. STABILITY_API_KEY for `shot music`; loaded by `load_env()` at CLI startup,
 the real env always wins over the file.
 """
 
@@ -23,7 +23,7 @@ DEFAULTS = {"input_dir": "input"}
 
 def load_env(path: Path = ENV_PATH) -> None:
     """`KEY=value` lines from .env into os.environ; existing env is not
-    overwritten (one-off overrides like VM_INPUT_DIR keep working as before)."""
+    overwritten (one-off overrides like SHOT_INPUT_DIR keep working as before)."""
     if not path.exists():
         return
     for line in path.read_text().splitlines():
@@ -53,13 +53,13 @@ def save(cfg: dict) -> None:
 
 
 def input_dir() -> Path:
-    env = os.environ.get("VM_INPUT_DIR")
+    env = os.environ.get("SHOT_INPUT_DIR")
     return Path(env) if env else Path(load()["input_dir"])
 
 
 def input_dir_source() -> str:
-    if os.environ.get("VM_INPUT_DIR"):
-        return "env VM_INPUT_DIR"
+    if os.environ.get("SHOT_INPUT_DIR"):
+        return "env SHOT_INPUT_DIR"
     if "input_dir" in (json.loads(CONFIG_PATH.read_text())
                        if CONFIG_PATH.exists() else {}):
         return "config.json"

@@ -42,11 +42,11 @@ through the CLI:
 
 ## Requirements
 
-- **Python ≥ 3.10** and a venv (the `./vm` wrapper expects `.venv/`)
+- **Python ≥ 3.10** and a venv (the `./shot` wrapper expects `.venv/`)
 - **ffmpeg / ffprobe** on `PATH`
 - macOS or Linux (the manifest locking uses `fcntl`; no Windows support)
 - Optional: a [Stability AI](https://platform.stability.ai/) API key — only for
-  `vm music --generate` (paid; everything else is free and offline)
+  `shot music --generate` (paid; everything else is free and offline)
 
 ## Quickstart
 
@@ -55,8 +55,8 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt   # once
 ```
 
 1. Drop your footage into `input/` — or point at another folder (e.g. an SD
-   card): `./vm config --input-dir /Volumes/SDCARD` (persistent, `--reset`
-   restores the default), or one-off: `VM_INPUT_DIR=/Volumes/SDCARD ./vm status`.
+   card): `./shot config --input-dir /Volumes/SDCARD` (persistent, `--reset`
+   restores the default), or one-off: `SHOT_INPUT_DIR=/Volumes/SDCARD ./shot status`.
 2. Open Claude Code in the repo and say e.g. "review the new footage"
    (skill `/shot-review`), "check the pacing" (`/pace-review`), "edit the film"
    (`/montage`), or "autopilot" (`/autopilot` — selection + pacing with no
@@ -64,35 +64,36 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt   # once
 3. Results: `output/selects/` (clips for the montage), `output/cuts/` (rendered
    films), `output/<name>/report.html` (smoothness reports).
 
-`./vm status` shows the whole project state at any point; the manifest
+`./shot status` shows the whole project state at any point; the manifest
 `output/project.json` is the persistent source of truth for every decision.
 
-## CLI: `./vm`
+## CLI: `./shot`
 
-One interface for humans and agents. All commands take multiple files (native
-batch) and support `--json` (result on stdout, logs on stderr, exit != 0 on
-error). Full flag semantics: `./vm <command> --help`.
+One interface for humans and agents, named after the domain object it works
+on — the shot (and after **Shot**pilot itself). All commands take multiple
+files (native batch) and support `--json` (result on stdout, logs on stderr,
+exit != 0 on error). Full flag semantics: `./shot <command> --help`.
 
 | Command | Purpose |
 |---|---|
-| `./vm status` | project dashboard: inputs, selects with ratings/notes, sequence, render, music, publishing |
-| `./vm scan FILE...` | smoothness analysis + contact sheet in one pass (mtime cache) |
-| `./vm sheet FILE...` | contact sheet alone (a scan already makes one) |
-| `./vm frames FILE T...` | 1280px evaluation frames at given seconds |
-| `./vm jitter FILE --from A --to B` | settles jitter vs a smooth maneuver within a range |
-| `./vm select FILE A B --label X` | cut a select from the source + manifest entry (`--stars`, `--note`); `--plan FILE.jsonl` cuts a whole batch and resumes after interruptions |
-| `./vm pace --selects` | screen pace (% of frame width/s) + speed-up recommendation; `--profile` finds dull stretches for `vm trim` |
-| `./vm speed CLIP N` | sped-up variant `_xN` |
-| `./vm tag CLIP...` | content tags (scene/shot/light/role) + metadata; `--reject`/`--unreject` |
-| `./vm trim CLIP A B` | re-cut a select from the SOURCE; variants and pace refresh automatically |
-| `./vm sequence [FILE...]` | montage order + lint (variety, narrative structure); `--target SEC`; no args: preview |
-| `./vm montage` | splice the sequence (crossfade = re-encode; `--xfade 0` = stream-copy draft; `--smooth` = motion interpolation for mixed frame rates) |
-| `./vm smooth [CLIP...]` | warm the interpolation cache before a final `--smooth` render |
-| `./vm locate [T \| FILE]` | read-only mapping montage timeline ↔ source shots |
-| `./vm music` | `--generate` (Stable Audio, paid), `--probe` (loudness/energy analysis), `TRACK...` = mux onto the render |
-| `./vm publish` | YT thumbnail (`--frame`), title + description (`--title --description-file`) |
-| `./vm archive NAME` | move the whole `output/` state to `archive/<date>_<name>/` + clean start; `vm restore` reverses it |
-| `./vm config` | input folder configuration |
+| `./shot status` | project dashboard: inputs, selects with ratings/notes, sequence, render, music, publishing |
+| `./shot scan FILE...` | smoothness analysis + contact sheet in one pass (mtime cache) |
+| `./shot sheet FILE...` | contact sheet alone (a scan already makes one) |
+| `./shot frames FILE T...` | 1280px evaluation frames at given seconds |
+| `./shot jitter FILE --from A --to B` | settles jitter vs a smooth maneuver within a range |
+| `./shot select FILE A B --label X` | cut a select from the source + manifest entry (`--stars`, `--note`); `--plan FILE.jsonl` cuts a whole batch and resumes after interruptions |
+| `./shot pace --selects` | screen pace (% of frame width/s) + speed-up recommendation; `--profile` finds dull stretches for `shot trim` |
+| `./shot speed CLIP N` | sped-up variant `_xN` |
+| `./shot tag CLIP...` | content tags (scene/shot/light/role) + metadata; `--reject`/`--unreject` |
+| `./shot trim CLIP A B` | re-cut a select from the SOURCE; variants and pace refresh automatically |
+| `./shot sequence [FILE...]` | montage order + lint (variety, narrative structure); `--target SEC`; no args: preview |
+| `./shot montage` | splice the sequence (crossfade = re-encode; `--xfade 0` = stream-copy draft; `--smooth` = motion interpolation for mixed frame rates) |
+| `./shot smooth [CLIP...]` | warm the interpolation cache before a final `--smooth` render |
+| `./shot locate [T \| FILE]` | read-only mapping montage timeline ↔ source shots |
+| `./shot music` | `--generate` (Stable Audio, paid), `--probe` (loudness/energy analysis), `TRACK...` = mux onto the render |
+| `./shot publish` | YT thumbnail (`--frame`), title + description (`--title --description-file`) |
+| `./shot archive NAME` | move the whole `output/` state to `archive/<date>_<name>/` + clean start; `shot restore` reverses it |
+| `./shot config` | input folder configuration |
 
 Alternative versions of the same footage: `sequence`/`montage`/`smooth`/`locate`/
 `music` accept `--cut NAME` — each cut keeps its own sequence, target, render and
@@ -123,13 +124,13 @@ the agent workflows in `.claude/skills/` all point there.
 - Source footage is never modified; selects are re-encoded copies.
 - Renders and paid operations (music generation) happen only after approval;
   music generation has explicit cost gates in the decision rules.
-- Cleanup is archiving (`vm archive` moves, nothing deletes); `vm restore`
+- Cleanup is archiving (`shot archive` moves, nothing deletes); `shot restore`
   brings a project back.
 
 ## Configuration files
 
 - `.env` (gitignored) — `STABILITY_API_KEY` for music generation.
-- `config.json` (gitignored) — machine config, written by `vm config`.
+- `config.json` (gitignored) — machine config, written by `shot config`.
 - `publish-template.txt` (gitignored) — your channel's YouTube description
   boilerplate; copy `publish-template.example.txt` to start.
 - `CLAUDE.local.md` (gitignored) — facts about *your* footage and preferences

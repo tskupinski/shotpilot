@@ -1,4 +1,4 @@
-"""Mapping the montage timeline to source shots (and back). CLI: `vm locate`.
+"""Mapping the montage timeline to source shots (and back). CLI: `shot locate`.
 
 The timeline is built by `montage.build_timeline` — this module holds timecode
 parsing and queries over the ready timeline. Everything read-only and pure

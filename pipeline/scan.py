@@ -19,7 +19,7 @@ def build_warnings(stats: dict, n_segments: int) -> list[str]:
     if stats["tracking_failed_pct"] > 20:
         warnings.append(f"Tracking failed for {stats['tracking_failed_pct']:.0f}% of frames — result unreliable (motion blur / low texture / night).")
     if n_segments and stats["kept_pct"] > 95:
-        warnings.append("Kept >95% of the footage — with gimbal footage this is usually correct; if in doubt verify review.png or `vm jitter`.")
+        warnings.append("Kept >95% of the footage — with gimbal footage this is usually correct; if in doubt verify review.png or `shot jitter`.")
     if n_segments and stats["kept_pct"] < 30:
         warnings.append("Kept <30% of the footage — the threshold may be too strict; consider a higher --threshold.")
     return warnings

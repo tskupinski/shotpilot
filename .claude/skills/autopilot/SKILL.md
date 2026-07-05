@@ -17,15 +17,15 @@ an auditable report. The user gave consent up front by invoking this skill.
 
 ## Scope and hard limits
 
-- In scope: `vm scan` (also makes contact sheets) → aesthetic review → `vm select`
-  + `vm tag` → `vm pace` → `vm speed` → report.
-- OUT of scope (requires a human): `vm archive`/`vm restore`, deleting anything,
+- In scope: `shot scan` (also makes contact sheets) → aesthetic review → `shot select`
+  + `shot tag` → `shot pace` → `shot speed` → report.
+- OUT of scope (requires a human): `shot archive`/`shot restore`, deleting anything,
   montage (the `/montage` skill — interactive), changes to the pipeline code.
 - **Escalate instead of guessing** (stop and ask) when: scan/render errors,
   `tracking_failed_pct > 20` on many files, footage of a completely different kind
   than before (e.g. night, interiors, people up close — reference point: the
   footage facts in CLAUDE.local.md and the notes of existing selects
-  from `./vm status --json`), or < 3 files worth a select.
+  from `./shot status --json`), or < 3 files worth a select.
 
 ## Flow
 
@@ -37,7 +37,7 @@ autopilot inherits them automatically):
 2. **Selection**: read `.claude/skills/shot-review/SKILL.md` and execute its
    steps. Auto mode: skip the "wait for acceptance" stop (the verdict) —
    verdicts become decisions and go into the report; right after cutting also assign
-   full content tags (`vm tag --scene --shot --light`, vocabulary: "Content tags"
+   full content tags (`shot tag --scene --shot --light`, vocabulary: "Content tags"
    in the rules) — you've just looked at the contact sheets, the montage will
    consume the tags later.
 3. **Pacing**: read `.claude/skills/pace-review/SKILL.md` and execute its

@@ -20,7 +20,7 @@ not in the skills.
 - **Verify with frames before rejecting:** contact sheet thumbnails can misrepresent
   LIGHT (flat vs golden) and lose small MOVING subjects (trains, cars). Confirm
   borderline "flat little town" rejects and clips with leading lines (tracks/road)
-  with `vm frames` (1280 px) BEFORE you reject — it's easy to blindly write off a strong frame.
+  with `shot frames` (1280 px) BEFORE you reject — it's easy to blindly write off a strong frame.
 - **Cut ranges:** inside smooth segments from `segments.json`; aim for 16–28 s
   (headroom for the montage); cut off boring starts and broken endings; boundaries ±2 s
   (a review from stills doesn't see motion pace).
@@ -33,7 +33,7 @@ They should carry a DECISION, not a description — "moody, stays slow",
 ## Pacing
 
 **Calibration:** < 2 %/s slow (contemplative) · 3–8 %/s good pace for a dynamic
-montage · > 8 %/s fast. Measurement: `vm pace` (median of trans+dolly+rot, % of frame
+montage · > 8 %/s fast. Measurement: `shot pace` (median of trans+dolly+rot, % of frame
 width/s). The script's recommendation is mechanical — correct it for context:
 
 - **Moody shots (fog, calm panoramas as a "breather")** → x1 even at "slow";
@@ -49,7 +49,7 @@ width/s). The script's recommendation is mechanical — correct it for context:
 - The other lever: instead of a strong speed-up, a shorter cut is sometimes better.
 - Pacing will ultimately be subordinate to the music — multipliers are a starting point.
 
-## Content tags (`vm tag`)
+## Content tags (`shot tag`)
 
 A structural description of the shot in the manifest — the foundation of montage
 variety. Assign from contact sheets during selection (or fill in before the montage),
@@ -89,9 +89,9 @@ rating — casting judges the contribution to a FILM of a given length, and good
 can drop out too. Casting mode procedure:
 
 - **Target:** agree it with the user.
-  Record it: `vm sequence --target SEC` (the manifest holds it, `vm status` shows it).
+  Record it: `shot sequence --target SEC` (the manifest holds it, `shot status` shows it).
 - **Number of slots** ≈ target / median EFFECTIVE select duration (range ÷ variant
-  multiplier — the `vm sequence` preview lists these durations). With standard
+  multiplier — the `shot sequence` preview lists these durations). With standard
   16–28 s selects that's ~15–20 s of screen time per clip, so a 5–6 min film
   ≈ 18–22 clips; a ~7 s/clip figure applies only after an aggressive trim review —
   do NOT divide the target by 7 s when the selects still run long. Sure slots:
@@ -105,27 +105,27 @@ can drop out too. Casting mode procedure:
   casting deletes nothing, it just doesn't put them into the sequence.
   **Persist the justifications in the manifest** (not only in the chat — the next
   session must be able to reconstruct the casting logic): a synthetic summary of the
-  casting and act structure → `vm sequence --note "..."` (the cut's note, per `--cut`);
-  the reject reason of a specific clip → `vm tag CLIP --append-note "..."`.
-- Mechanical support: the `vm sequence` preview shows the pool outside the sequence
+  casting and act structure → `shot sequence --note "..."` (the cut's note, per `--cut`);
+  the reject reason of a specific clip → `shot tag CLIP --append-note "..."`.
+- Mechanical support: the `shot sequence` preview shows the pool outside the sequence
   (`unused`), the total vs the target and drop candidates (`drop_candidates`:
   lowest ★, twins) — that's a hint, the aesthetic decision belongs to the agent.
 
 **Permanent reject vs per-version casting (`reject`):** casting (above) is per-montage —
 a clip doesn't enter THIS sequence but returns to the pool for another version. When a clip
 is **objectively flawed** (odd camera work, drift, a repeat with no value) and belongs in
-NO version — mark it with `vm tag --reject`. Then: it disappears from the casting pool
+NO version — mark it with `shot tag --reject`. Then: it disappears from the casting pool
 (`unused`), shows up separately ("Rejected"), and the `rejected_clip` lint warns if
 it ends up in a sequence anyway. `--unreject` reverses it. Reject is a permanent quality
 decision (like ★2/★1 at selection), not a tool for shortening toward a target — that's what casting is for.
 
 ## Montage — ordering
 
-The agent arranges the sequence (`vm sequence`); lint mechanically flags violations
+The agent arranges the sequence (`shot sequence`); lint mechanically flags violations
 of variety and structure — a warning may be accepted, but only with a
 conscious justification presented to the user. **Record accepted
 warnings and the ordering/act rationale in the manifest**
-(`vm sequence --append-note "lint scene_overuse OK: deliberate narrative pair
+(`shot sequence --append-note "lint scene_overuse OK: deliberate narrative pair
 0236+0237"`) — it's the only durable trace of the "why" between sessions.
 
 - **Opening hook:** ★4–5, clear subject, natural pace (not a slow clip
@@ -152,7 +152,7 @@ warnings and the ordering/act rationale in the manifest**
 - **Variant minimum:** the variant chosen for the splice must give ≥ ~4 s
   (range / multiplier); if it comes out shorter — go down to a lower multiplier or x1.
 
-The `vm sequence` lint enforces the above mechanically (the numeric thresholds live
+The `shot sequence` lint enforces the above mechanically (the numeric thresholds live
 in the implementation in `pipeline/lint.py`, the criteria are defined by this file):
 missing tags; `rejected_clip` (a select with `reject=true` in the sequence);
 adjacency of the same `shot`/`scene`; `weak_hook` (first clip
@@ -164,7 +164,7 @@ light); `tempo_monotony` (≥ 4 consecutive without effective pace contrast);
 `duration_off_target` (the total deviates from the target by more than 10% of the
 target, minimum 10 s).
 
-## Transitions (`vm montage --xfade`)
+## Transitions (`shot montage --xfade`)
 
 Crossfade between all adjacent clips; a single length for the whole film.
 
@@ -182,8 +182,8 @@ Crossfade between all adjacent clips; a single length for the whole film.
   when available), several times faster than the final render; use it when the
   ordering is settled but the transitions/seams still need watching. Preview
   quality: the render is marked `draft` in the manifest (status shows it,
-  music mux refuses it) — the accepted version gets a final `vm montage`.
-  A repeated `vm montage` with an unchanged sequence and parameters is skipped
+  music mux refuses it) — the accepted version gets a final `shot montage`.
+  A repeated `shot montage` with an unchanged sequence and parameters is skipped
   (render already fresh) — `--force` re-renders anyway.
 - **Montage transition clips** (clips flying into fog/white) — still reserve them for
   seams between acts — crossfade doesn't replace a natural seam, it only softens the cuts.
@@ -196,7 +196,7 @@ rate in the set; without `--smooth` the lower-fps clips have slight judder
 (frame duplication). Render **without** `--smooth` by default — drafts, order
 iterations and working versions should be fast. Reserve `--smooth` (motion interpolation,
 render many times slower) for the **final render** of the chosen version, when the judder
-should really disappear; the interpolation cache can be warmed earlier in the background (`vm smooth`).
+should really disappear; the interpolation cache can be warmed earlier in the background (`shot smooth`).
 Normalizing upward is deliberate: it is smooth on 60 Hz screens (a 24 fps target
 would catch 3:2 pulldown) and it preserves the real frames of the highest-fps
 clips, interpolating only the rest.
@@ -205,11 +205,11 @@ clips, interpolating only the rest.
 and the skills point here): smoothing goes ONE clip at a time (a single
 minterpolate process ≈ 6 GB RAM — parallelism risks OOM); the cache is per source
 clip (by filename), so changing the sequence ORDER doesn't invalidate it — warming
-can run in the background while iterating on the order, and the final `vm montage --smooth`
+can run in the background while iterating on the order, and the final `shot montage --smooth`
 only fills in the gaps; invalidation on mtime and a mismatched fps; reused across
 versions/cuts; deletable — it will be rebuilt on the next `--smooth`.
 
-## Music (`vm music`)
+## Music (`shot music`)
 
 Music is a separate, cheap step AFTER the montage render (a mux onto the cut's render,
 video stream copy → `output/cuts/<cut>-final.mp4`) — iterating on the mux doesn't require
@@ -225,7 +225,7 @@ so a re-render at the SAME length doesn't require new music.
 
 - **Cost: 20 credits per generation, REGARDLESS of length** (10 s costs
   the same as 190 s) — don't generate short "trials", go straight for target
-  lengths. `vm music` (no arguments) shows the balance; endpoint:
+  lengths. `shot music` (no arguments) shows the balance; endpoint:
   `GET https://api.stability.ai/v1/user/balance`.
 - **402 right after buying credits = propagation** (the balance is already visible,
   generation still refuses) — wait a moment and retry, it's not an implementation bug.
@@ -243,35 +243,35 @@ so a re-render at the SAME length doesn't require new music.
     pulse` — the music's tempo should support the screen pace, not fight it;
   - structure: a film with a hook and a final → `gentle intro, gradual build,
     soft resolution ending`.
-- **Length = the RENDER duration** (`vm music --generate` takes it from the manifest) —
+- **Length = the RENDER duration** (`shot music --generate` takes it from the manifest) —
   not the sum of the sequence's clips: crossfades eat (n−1)×xfade, so the film is
   ~30 s shorter than the sum at 30 clips. Plan the parts so that the sum −
   4 s/seam ≈ the render duration (+0–5 s of headroom) — excess cuts off the composed
   ending of the last part. Film > 190 s — two ways:
-  - **loop** (`vm music TRACK --loop`) — for ambient music without a clear
+  - **loop** (`shot music TRACK --loop`) — for ambient music without a clear
     structure, a uniform mood through the whole film;
-  - **parts** (`vm music PART1 PART2 ...`) — generate 2+ tracks with prompt variation
+  - **parts** (`shot music PART1 PART2 ...`) — generate 2+ tracks with prompt variation
     (`part 1: build` / `part 2: resolution`), spliced with acrossfade; better for
     films > ~3 min and music with a build. Align the seams between parts with the film's
     acts, but count them in SCREEN time: an act boundary on screen ≈ the sum of
     clips up to the seam − (the number of video seams so far)×xfade.
-    `vm music --generate` suffixes filenames itself (`base`, `base-1`, …) and doesn't
+    `shot music --generate` suffixes filenames itself (`base`, `base-1`, …) and doesn't
     overwrite — do NOT change names between part generations; for meaningful names,
     differentiate the first ~5 words of each part's prompt.
 - **Mux defaults:** fade-in 1 s, fade-out 3 s, loudnorm −14 LUFS (YouTube);
   crossfade between parts/repeats 4 s. Change only with a reason
   (e.g. a hook from the first frame → `--fade-in 0`).
-- **The agent can't hear** — `vm music --probe TRACK` shows the duration, loudness
+- **The agent can't hear** — `shot music --probe TRACK` shows the duration, loudness
   and an energy curve in 5 s windows; match the track's climax to the sequence's
   dramaturgy (e.g. the highest energy where the most dynamic clips are),
   and leave the final judgment of the sound to the user after listening.
-- **After the mux:** `vm music --probe output/cuts/main-final.mp4` — the integrated
+- **After the mux:** `shot music --probe output/cuts/main-final.mp4` — the integrated
   loudness should come out ≈ the loudnorm target (−14 LUFS), and the energy curve
   shows whether the music's dramaturgy hit the acts.
 - **Freshness:** a re-render of the montage invalidates the `-final.mp4` file (status:
   music `stale`) — a repeat mux takes seconds, the generated tracks stay.
 
-## Publishing (`vm publish`)
+## Publishing (`shot publish`)
 
 Assets for YouTube: thumbnail, title and description. **Everything published
 in ENGLISH** (thumbnail text, title, description) — communication with the user
@@ -287,7 +287,7 @@ after the user accepts the proposals**.
   for the text (the bottom or top of the frame without important detail — that's where
   the gradient and the caption go). Take the frame FROM THE SOURCE at full resolution
   (`--frame SOURCE --at SEC`, not from a select/render); find the time via `contact.png`
-  and refine with `vm frames`.
+  and refine with `shot frames`.
 - **Legibility at small preview size decides** — the agent LOOKS at the rendered
   thumbnail via Read and judges: does the text blend into the background, did the frame's
   subject survive the crop/grading, does the whole read at thumbnail size. Render
@@ -314,42 +314,42 @@ after the user accepts the proposals**.
 - **Description — the specific part** (the agent writes it from the manifest: scene/light
   tags, notes, the season from the facts about the footage): 2–4 sentences — what, where,
   when, shot with what; it goes FIRST (the first ~150 characters show in search),
-  the template boilerplate after it. If the music comes from `vm music` — AI attribution
+  the template boilerplate after it. If the music comes from `shot music` — AI attribution
   in the description (`Music: AI-generated, Stable Audio`) per YT's requirement
   to disclose synthetic content (the template has a line for this — don't duplicate it,
   just verify it's there).
 - **Freshness:** the thumbnail is made from the source, the description from the project's
   content — a re-render of the montage invalidates nothing here (deliberately no staleness mechanics).
 
-## Trim review (`vm trim`)
+## Trim review (`shot trim`)
 
 A review of the selects for dull stretches — a separate step before ordering.
 
 - **Too long:** > 12 s without internal development (nothing new enters the frame,
   uniform motion). Exception: moody "breathers" may run 15–20 s.
-- **Detecting dull stretches:** `vm pace --profile` — pace in 2 s windows from the
+- **Detecting dull stretches:** `shot pace --profile` — pace in 2 s windows from the
   source's motion.csv (seconds, no 4K decoding); `DULL` = ≥ 2 consecutive windows below 50%
   of the clip's median (with the default 2 s window that's a dull stretch of ≥ 4 s), with
-  times on the clip's and the SOURCE's axis (ready for `vm trim`). **This is the only
+  times on the clip's and the SOURCE's axis (ready for `shot trim`). **This is the only
   definition of DULL** — the skills point here.
-  The profile doesn't see composition — before you cut, confirm with frames (`vm frames`)
+  The profile doesn't see composition — before you cut, confirm with frames (`shot frames`)
   that nothing visual is happening in the "dead" fragment (e.g. a subject entering
   the frame with a static camera).
 - **How to cut:** down to the strongest phase of motion/composition; a clean entry and
   exit (no truncated maneuver); minimum ~4 s.
-- **Always `vm trim`** — a re-cut from the source (no generation loss); speed
+- **Always `shot trim`** — a re-cut from the source (no generation loss); speed
   variants refresh automatically, the pace is measured anew.
 
 ## Technical verification
 
-The `warnings[]` vocabulary from `vm scan` and reactions:
+The `warnings[]` vocabulary from `shot scan` and reactions:
 
 - **"No segments found"** → look at `review.png`; try a higher
   `--threshold`; in autopilot, escalate.
 - **"Tracking failed for >20% of frames"** → the result is unreliable (motion blur / night /
   little texture); in autopilot this is an escalation threshold.
 - **"Kept >95% of the footage"** → with gimbal footage this is usually a false alarm —
-  `vm jitter` decides (verdict `jitter` vs `smooth-maneuver`).
+  `shot jitter` decides (verdict `jitter` vs `smooth-maneuver`).
 - **"Kept <30% of the footage"** → the threshold is probably too strict; consider a higher
   `--threshold`, look at `review.png`.
 
@@ -357,8 +357,8 @@ Additionally:
 
 - Typical gimbal scores: p50 ≈ 0.03–0.05; upward deviations → look at `review.png`.
 - After renders always ffprobe: clip duration ≈ the range, a variant's ≈ original/multiplier
-  (`vm montage` verifies the splice duration ≈ the sum of the clips on its own).
-- **A non-uniform clip in `vm montage`** (codec/dimensions/pix_fmt deviate from the
+  (`shot montage` verifies the splice duration ≈ the sum of the clips on its own).
+- **A non-uniform clip in `shot montage`** (codec/dimensions/pix_fmt deviate from the
   rest; fps is checked ONLY with `--xfade 0` — the crossfade path normalizes
   fps on the fly, mixed frame rates don't block it) → re-render the faulty clip
-  via `vm select`/`vm speed`, don't work around the check.
+  via `shot select`/`shot speed`, don't work around the check.

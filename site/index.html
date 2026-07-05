@@ -464,7 +464,7 @@
         <code>/shot-review</code>, <code>/montage</code> and <code>/autopilot</code> walk the agent
         through selection, pacing and editing. Every decision lands in a persistent manifest
         (<code>output/project.json</code>) — the source of truth across sessions.</p>
-        <p>And everything also works by hand: <code>./vm</code> is a normal command-line tool with
+        <p>And everything also works by hand: <code>./shot</code> is a normal command-line tool with
         <code>--json</code> output, native batching and honest exit codes. No agent required.</p>
       </div>
       <div class="terminal">
@@ -472,15 +472,15 @@
         <div class="term-body">
 <p><span class="you">you ›</span> review the new footage</p>
 <p><span class="agent">agent ›</span> Scanning 14 files from the card…
-<span class="cmd">./vm scan input/DJI_0284.MP4 … --json</span></p>
+<span class="cmd">./shot scan input/DJI_0284.MP4 … --json</span></p>
 <p><span class="agent">agent ›</span> DJI_0301 is smooth throughout. The lake crossing
 at 00:42–01:18 is the strongest range — golden light,
 clean horizon. Cutting a select, <span class="you">★★★</span>.
-<span class="cmd">./vm select DJI_0301.MP4 42 78 --label lake --stars 3</span></p>
+<span class="cmd">./shot select DJI_0301.MP4 42 78 --label lake --stars 3</span></p>
 <p><span class="you">you ›</span> isn’t the ridge shot too slow?</p>
 <p><span class="agent">agent ›</span> 1.4 %/s on screen — slow. A ×2.5 variant keeps
 the drift readable without feeling rushed.
-<span class="cmd">./vm speed output/selects/DJI_0294_ridge.mp4 2.5</span>
+<span class="cmd">./shot speed output/selects/DJI_0294_ridge.mp4 2.5</span>
 <span class="dim">Kept the dusk shot at ×1 — it stays slow, that’s the mood.</span></p>
         </div>
       </div>
@@ -495,13 +495,13 @@ the drift readable without feeling rushed.
     <p class="section-lede">Each stage leaves auditable artifacts — review images, JSON summaries,
     a manifest entry — so the human, or the next agent session, can see exactly why every cut happened.</p>
     <div class="steps">
-      <div class="step"><h3>Scan</h3><p>Per-frame camera transform via OpenCV feature tracking; smoothness scores the <em>acceleration</em> of motion, so a fast uniform flyover reads as smooth and a jerk as a spike.</p><code>./vm scan input/*.MP4</code></div>
-      <div class="step"><h3>Review</h3><p>Contact sheets and KEPT/CUT review plots for every file — the agent judges composition, light and subject, and recommends ranges.</p><code>./vm frames FILE 12 40 88</code></div>
-      <div class="step"><h3>Select</h3><p>Chosen ranges are re-encoded into uniform clips with star ratings and decision notes; batch plans resume after interruptions.</p><code>./vm select FILE 42 78 --stars 3</code></div>
-      <div class="step"><h3>Pace</h3><p>Screen pace measured as % of frame width per second, with speed-up recommendations. Mechanical numbers; the mood call stays with the agent.</p><code>./vm pace --selects</code></div>
-      <div class="step"><h3>Montage</h3><p>Sequence ordering with a variety-and-narrative lint, then crossfade splicing — with optional motion interpolation for mixed frame rates.</p><code>./vm montage --smooth</code></div>
-      <div class="step"><h3>Music</h3><p>AI-generated track (Stable Audio) probed for duration, loudness and energy curve, then muxed onto the render. Paid API calls sit behind explicit cost gates.</p><code>./vm music --generate</code></div>
-      <div class="step"><h3>Publish</h3><p>YouTube thumbnail from a hero frame, plus title and description built from your channel template.</p><code>./vm publish --frame FILE T</code></div>
+      <div class="step"><h3>Scan</h3><p>Per-frame camera transform via OpenCV feature tracking; smoothness scores the <em>acceleration</em> of motion, so a fast uniform flyover reads as smooth and a jerk as a spike.</p><code>./shot scan input/*.MP4</code></div>
+      <div class="step"><h3>Review</h3><p>Contact sheets and KEPT/CUT review plots for every file — the agent judges composition, light and subject, and recommends ranges.</p><code>./shot frames FILE 12 40 88</code></div>
+      <div class="step"><h3>Select</h3><p>Chosen ranges are re-encoded into uniform clips with star ratings and decision notes; batch plans resume after interruptions.</p><code>./shot select FILE 42 78 --stars 3</code></div>
+      <div class="step"><h3>Pace</h3><p>Screen pace measured as % of frame width per second, with speed-up recommendations. Mechanical numbers; the mood call stays with the agent.</p><code>./shot pace --selects</code></div>
+      <div class="step"><h3>Montage</h3><p>Sequence ordering with a variety-and-narrative lint, then crossfade splicing — with optional motion interpolation for mixed frame rates.</p><code>./shot montage --smooth</code></div>
+      <div class="step"><h3>Music</h3><p>AI-generated track (Stable Audio) probed for duration, loudness and energy curve, then muxed onto the render. Paid API calls sit behind explicit cost gates.</p><code>./shot music --generate</code></div>
+      <div class="step"><h3>Publish</h3><p>YouTube thumbnail from a hero frame, plus title and description built from your channel template.</p><code>./shot publish --frame FILE T</code></div>
     </div>
   </div>
 </section>
@@ -527,22 +527,22 @@ the drift readable without feeling rushed.
     <p class="section-lede">All commands take multiple files (native batch) and support
     <span class="inline-code">--json</span>: result on stdout, logs on stderr, exit ≠ 0 on error.</p>
     <div class="cli-grid">
-      <div class="cli-row"><code>./vm status</code><span>project dashboard: inputs, selects, sequence, render, music, publishing</span></div>
-      <div class="cli-row"><code>./vm scan</code><span>smoothness analysis + contact sheet in one pass (mtime cache)</span></div>
-      <div class="cli-row"><code>./vm select</code><span>cut a select from the source, with stars, notes and resumable batch plans</span></div>
-      <div class="cli-row"><code>./vm pace</code><span>screen pace (%/s) + speed-up recommendation; finds dull stretches to trim</span></div>
-      <div class="cli-row"><code>./vm sequence</code><span>montage order + lint for variety and narrative structure</span></div>
-      <div class="cli-row"><code>./vm montage</code><span>crossfade splice; stream-copy drafts; <span class="inline-code">--smooth</span> interpolation</span></div>
-      <div class="cli-row"><code>./vm music</code><span>generate (Stable Audio), probe, and mux a track onto the render</span></div>
-      <div class="cli-row"><code>./vm publish</code><span>YouTube thumbnail, title and description</span></div>
-      <div class="cli-row"><code>./vm locate</code><span>read-only mapping: montage timeline ↔ source shots</span></div>
-      <div class="cli-row"><code>./vm archive</code><span>move the whole project state aside and start clean; <span class="inline-code">restore</span> reverses it</span></div>
+      <div class="cli-row"><code>./shot status</code><span>project dashboard: inputs, selects, sequence, render, music, publishing</span></div>
+      <div class="cli-row"><code>./shot scan</code><span>smoothness analysis + contact sheet in one pass (mtime cache)</span></div>
+      <div class="cli-row"><code>./shot select</code><span>cut a select from the source, with stars, notes and resumable batch plans</span></div>
+      <div class="cli-row"><code>./shot pace</code><span>screen pace (%/s) + speed-up recommendation; finds dull stretches to trim</span></div>
+      <div class="cli-row"><code>./shot sequence</code><span>montage order + lint for variety and narrative structure</span></div>
+      <div class="cli-row"><code>./shot montage</code><span>crossfade splice; stream-copy drafts; <span class="inline-code">--smooth</span> interpolation</span></div>
+      <div class="cli-row"><code>./shot music</code><span>generate (Stable Audio), probe, and mux a track onto the render</span></div>
+      <div class="cli-row"><code>./shot publish</code><span>YouTube thumbnail, title and description</span></div>
+      <div class="cli-row"><code>./shot locate</code><span>read-only mapping: montage timeline ↔ source shots</span></div>
+      <div class="cli-row"><code>./shot archive</code><span>move the whole project state aside and start clean; <span class="inline-code">restore</span> reverses it</span></div>
     </div>
     <p class="cli-note">Plus <span class="inline-code">sheet</span>, <span class="inline-code">frames</span>,
     <span class="inline-code">jitter</span>, <span class="inline-code">speed</span>, <span class="inline-code">tag</span>,
     <span class="inline-code">trim</span>, <span class="inline-code">smooth</span>, <span class="inline-code">config</span>
     and <span class="inline-code">validate</span> — full flag semantics live in
-    <span class="inline-code">./vm &lt;command&gt; --help</span> and the README.</p>
+    <span class="inline-code">./shot &lt;command&gt; --help</span> and the README.</p>
   </div>
 </section>
 
@@ -564,7 +564,7 @@ the drift readable without feeling rushed.
     <h2>Three commands and a sentence.</h2>
     <div class="quick">
       <ul class="req">
-        <li><strong>Python ≥ 3.10</strong> with a venv (the <span class="inline-code">./vm</span> wrapper expects <span class="inline-code">.venv/</span>)</li>
+        <li><strong>Python ≥ 3.10</strong> with a venv (the <span class="inline-code">./shot</span> wrapper expects <span class="inline-code">.venv/</span>)</li>
         <li><strong>ffmpeg / ffprobe</strong> on PATH</li>
         <li><strong>macOS or Linux</strong> (no Windows support)</li>
         <li><strong>Optional:</strong> a Stability AI key — only for music generation. Everything else is free and offline.</li>
@@ -573,7 +573,7 @@ the drift readable without feeling rushed.
 python3 -m venv .venv &amp;&amp; .venv/bin/pip install -r requirements.txt
 
 <span class="c"># drop footage into input/ — or point at the SD card</span>
-./vm config --input-dir /Volumes/SDCARD
+./shot config --input-dir /Volumes/SDCARD
 
 <span class="c"># then open Claude Code in the repo and say:</span>
 <span class="say">“review the new footage”</span>   <span class="c">→ /shot-review</span>

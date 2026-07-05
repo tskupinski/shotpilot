@@ -1,7 +1,7 @@
 """Layout of the output/ directory — the only place defining artifact paths.
 
 Paths are RELATIVE to the current working directory (project = CWD);
-`vm archive`/`vm restore` move the whole OUTPUT between the project and ARCHIVE.
+`shot archive`/`shot restore` move the whole OUTPUT between the project and ARCHIVE.
 The input folder is separate (per-machine `config.input_dir()`), because it
 is not archived. Changing the output layout = editing ONLY here.
 """

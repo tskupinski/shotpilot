@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "shotpilot/config.schema.json",
-  "$comment": "Contract for config.json (machine config; only deviations from config.DEFAULTS). Writer: pipeline/config.py (validated before write); explicit check: `vm validate`.",
+  "$comment": "Contract for config.json (machine config; only deviations from config.DEFAULTS). Writer: pipeline/config.py (validated before write); explicit check: `shot validate`.",
   "type": "object",
   "additionalProperties": false,
   "properties": {

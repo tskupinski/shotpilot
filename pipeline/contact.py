@@ -1,7 +1,7 @@
-"""Contact sheet: grid of frames every N seconds for judging appeal. CLI: `vm sheet`.
+"""Contact sheet: grid of frames every N seconds for judging appeal. CLI: `shot sheet`.
 
-`vm scan` builds the sheet from frames of its own decoding pass (render_grid);
-standalone `vm sheet` extracts frames with ffmpeg (with an mtime cache).
+`shot scan` builds the sheet from frames of its own decoding pass (render_grid);
+standalone `shot sheet` extracts frames with ffmpeg (with an mtime cache).
 """
 
 import sys
@@ -41,7 +41,7 @@ def render_grid(
         ax.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         ax.set_xticks([]), ax.set_yticks([])
         # scan passes raw frame timestamps (e.g. 1.96029) — display rounded, the
-        # labels are meant to be typed back into `vm frames` / `vm select`
+        # labels are meant to be typed back into `shot frames` / `shot select`
         ax.set_title(f"t={round(t, 1):g}s", fontsize=8)
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)

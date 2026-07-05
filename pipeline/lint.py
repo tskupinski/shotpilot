@@ -1,4 +1,4 @@
-"""Montage sequence lint: diversity and narrative structure. CLI: `vm sequence`.
+"""Montage sequence lint: diversity and narrative structure. CLI: `shot sequence`.
 
 The warning schema (types + fields) and its rendering into messages (WARN_FMT)
 live TOGETHER in this file — they must not drift apart. Numeric thresholds
@@ -26,7 +26,7 @@ BREATH_AFTER = 3           # after this many dynamic in a row a breather is due
 WARN_FMT = {
     "untagged": lambda w: f"untagged: {w['file']}",
     "rejected_clip": lambda w: (f"clip {w['at'][0]} is a REJECTED select "
-                                f"({Path(w['file']).name}) — remove it from the sequence or `vm tag --unreject`"),
+                                f"({Path(w['file']).name}) — remove it from the sequence or `shot tag --unreject`"),
     "adjacent_same_shot": lambda w: (f"clips {w['at'][0]} and {w['at'][1]} next "
                                      f"to each other with the same shot={w['value']}"),
     "adjacent_same_scene": lambda w: (f"clips {w['at'][0]} and {w['at'][1]} next "

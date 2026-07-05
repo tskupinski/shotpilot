@@ -1,4 +1,4 @@
-"""Screen pace assessment of a clip and speed-up (setpts). CLI: `vm pace` / `vm speed`.
+"""Screen pace assessment of a clip and speed-up (setpts). CLI: `shot pace` / `shot speed`.
 
 Pace = median on-screen motion in % of frame width per second, broken down into
 translation (pan/tilt), dolly (forward flight = zoom) and rotation. The
@@ -102,7 +102,7 @@ def apply_speed(info: VideoInfo, speed: float, out: Path) -> Path:
 
 
 def profile_with_src_axis(profile: dict, offset: float) -> dict:
-    """Profile windows on dual axes: clip time + source time (for vm trim)."""
+    """Profile windows on dual axes: clip time + source time (for shot trim)."""
     profile["windows"] = [
         {"t0": round(w["t0"] - offset, 1), "t1": round(w["t1"] - offset, 1),
          "t0_src": w["t0"], "t1_src": w["t1"],

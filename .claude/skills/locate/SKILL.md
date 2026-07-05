@@ -10,7 +10,7 @@ description: >
 
 # Locate — montage time ↔ source shot
 
-Everything goes through `./vm locate`; syntax and flags: `./vm locate --help`.
+Everything goes through `./shot locate`; syntax and flags: `./shot locate --help`.
 The tool is **read-only** — it only
 reads the manifest (the cut's sequence and render record), renders nothing.
 By default it works on the main montage (cut `main`); for another cut add
@@ -18,16 +18,16 @@ By default it works on the main montage (cut `main`); for another cut add
 
 **Why:** the montage render (`output/cuts/<cut>.mp4`) has a crossfade at every
 seam, so time in the film ≠ a simple sum of clip lengths (each transition
-overlaps by `xfade` s). `vm locate` computes the timeline correctly (the same
+overlaps by `xfade` s). `shot locate` computes the timeline correctly (the same
 offset formula as the render) and answers which shot is playing at a given
 moment — no manual arithmetic.
 
 ## Three modes (argument auto-detection)
 
 ```sh
-./vm locate 2:15 9:07            # TIME -> source file + label + offset within the clip
-./vm locate DJI_0301.MP4         # FILE/label -> position in the sequence + neighbors
-./vm locate                      # no argument -> full montage timeline
+./shot locate 2:15 9:07            # TIME -> source file + label + offset within the clip
+./shot locate DJI_0301.MP4         # FILE/label -> position in the sequence + neighbors
+./shot locate                      # no argument -> full montage timeline
 ```
 
 - **Time → clip:** argument as `M:SS`, `M:SS.s` or bare seconds. Batch (many
@@ -45,9 +45,9 @@ otherwise 1.0). `--json` = result on stdout (timeline/clips with
 `start_s`/`end_s`/`source`), logs on stderr.
 
 **Other cuts and external montages:** a named cut's timeline comes from the
-manifest — `./vm locate --cut short 0:52`. For a one-off render outside the
-manifest (`vm montage --files ... --out`) pass its clips in order:
-`./vm locate 0:52 --files A.mp4 B.mp4 ...` — clips known from the manifest
+manifest — `./shot locate --cut short 0:52`. For a one-off render outside the
+manifest (`shot montage --files ... --out`) pass its clips in order:
+`./shot locate 0:52 --files A.mp4 B.mp4 ...` — clips known from the manifest
 resolve source/label immediately, unknown ones resolve via ffprobe + the
 file name.
 
@@ -56,7 +56,7 @@ file name.
 - The timeline is computed from the **CURRENT sequence** in the manifest
   (= what the next render will produce), not from the current render file.
   If the render is stale relative to the sequence, the command adds a note on
-  stderr — the times refer to what will exist after the next `vm montage`.
+  stderr — the times refer to what will exist after the next `shot montage`.
 - With a FRESH render the timeline is computed from the measured clip
   durations in its record (matches the file to the millisecond); without a
   fresh render — from the manifest (range / multiplier), with a sub-second
@@ -66,4 +66,4 @@ file name.
 
 Works naturally with `/montage` (review by timecode) — when the user points
 at a time and wants a change (trim/swap/order), locate the shot with this
-tool, and do the edit itself via `/montage` (`vm trim`/`vm sequence`).
+tool, and do the edit itself via `/montage` (`shot trim`/`shot sequence`).

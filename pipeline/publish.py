@@ -1,4 +1,4 @@
-"""YT publishing assets. CLI: `vm publish`.
+"""YT publishing assets. CLI: `shot publish`.
 
 Two operations: thumbnail render (frame from the SOURCE at full resolution →
 1280×720, place text in a heavy font with an outline, readability gradient,
@@ -24,7 +24,7 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFont
 from .probe import probe
 
 PUBLISH_DIR = paths.PUBLISH
-TEMPLATE_PATH = Path("publish-template.txt")  # env VM_PUBLISH_TEMPLATE wins
+TEMPLATE_PATH = Path("publish-template.txt")  # env SHOT_PUBLISH_TEMPLATE wins
 THUMB_W, THUMB_H = 1280, 720                  # YT standard
 JPEG_QUALITY = 90
 MAX_BYTES = 2_000_000                         # YT limit for a thumbnail
@@ -180,7 +180,7 @@ def render_thumbnail(source: Path, at_s: float, text: str, out: Path,
 # -------------------------------------------------------------- description
 
 def template_path() -> Path:
-    env = os.environ.get("VM_PUBLISH_TEMPLATE")
+    env = os.environ.get("SHOT_PUBLISH_TEMPLATE")
     return Path(env) if env else TEMPLATE_PATH
 
 

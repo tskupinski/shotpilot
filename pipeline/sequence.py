@@ -1,7 +1,7 @@
 """Montage sequence preview: the view, casting pool, drop candidates.
 
 Pure presentation + casting heuristics on manifest data (dicts come in as
-parameters — the module does not read the manifest itself). CLI: `vm sequence`
+parameters — the module does not read the manifest itself). CLI: `shot sequence`
 (no arguments).
 """
 
@@ -78,7 +78,7 @@ def sequence_view(mont: dict, selects: list[dict]) -> tuple[dict, str]:
     if target_s and total > target_s:
         payload["drop_candidates"] = drop_candidates(seq, by_file)
     if not rows:
-        human = "empty sequence — `vm sequence FILE...`"
+        human = "empty sequence — `shot sequence FILE...`"
         if target_s:
             human += f"\nMontage target: {target_s:g} s"
         return payload, human

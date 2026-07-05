@@ -11,8 +11,8 @@ description: >
 
 # Publish — thumbnail, title and description for YouTube
 
-Everything goes through `./vm publish`; **criteria for the frame, style, title
-and description: `docs/decision-rules.md` (the "Publishing (`vm publish`)"
+Everything goes through `./shot publish`; **criteria for the frame, style, title
+and description: `docs/decision-rules.md` (the "Publishing (`shot publish`)"
 section)** — read before making decisions.
 Title, description and thumbnail text in ENGLISH (they are published assets),
 regardless of the language of the conversation.
@@ -20,8 +20,8 @@ regardless of the language of the conversation.
 ## Step 0: State and template
 
 ```sh
-./vm status --json 2>/dev/null    # selects with stars/tags, publishing state
-./vm publish                      # asset state + whether the description template exists
+./shot status --json 2>/dev/null    # selects with stars/tags, publishing state
+./shot publish                      # asset state + whether the description template exists
 ```
 
 No `publish-template.txt` → ask the user to copy
@@ -33,20 +33,20 @@ the template.
 
 **First confirm the place name with the user** (thumbnail text and title) —
 do not derive it from the manifest tags or from the footage facts in
-CLAUDE.local.md (rules: "Publishing (`vm publish`)").
+CLAUDE.local.md (rules: "Publishing (`shot publish`)").
 
 Per the rules: sources of ★4–5 selects, preference for `golden-hour`/`fog`,
 clean area for the text. View the sources' `contact.png` (Read), cut 2–3
 candidate frames to be sure about composition:
 
 ```sh
-./vm frames input/SOURCE.MP4 12.4 33.0
+./shot frames input/SOURCE.MP4 12.4 33.0
 ```
 
 Render candidate thumbnails (custom `--out` = no manifest entry):
 
 ```sh
-./vm publish --frame input/SOURCE.MP4 --at 12.4 --text "DOLOMITES" \
+./shot publish --frame input/SOURCE.MP4 --at 12.4 --text "DOLOMITES" \
              [--subtitle "CINEMATIC 4K"] [--pos top] --out output/publish/cand-1.jpg
 ```
 
@@ -66,14 +66,14 @@ approval round.**
 ## Step 3: After approval — final assets
 
 ```sh
-./vm publish --frame input/SOURCE.MP4 --at 12.4 --text "DOLOMITES"   # default out = manifest entry
+./shot publish --frame input/SOURCE.MP4 --at 12.4 --text "DOLOMITES"   # default out = manifest entry
 ```
 
 Write the specific part of the description with Write to a temporary file
 (e.g. `/tmp/publish-specific.txt`), then:
 
 ```sh
-./vm publish --title "Dolomites — Cinematic 4K Drone Film" --description-file /tmp/publish-specific.txt
+./shot publish --title "Dolomites — Cinematic 4K Drone Film" --description-file /tmp/publish-specific.txt
 ```
 
 The module merges: specific part FIRST, boilerplate after it →

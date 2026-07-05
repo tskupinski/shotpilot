@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "shotpilot/summary.schema.json",
-  "$comment": "Contract for output/<stem>/summary.json. Writer: pipeline/scan.py (validated before write); explicit check: `vm validate`. Read by cmd_status.",
+  "$comment": "Contract for output/<stem>/summary.json. Writer: pipeline/scan.py (validated before write); explicit check: `shot validate`. Read by cmd_status.",
   "type": "object",
   "additionalProperties": false,
   "required": ["video", "params", "stats", "segments", "rejected", "artifacts", "warnings"],

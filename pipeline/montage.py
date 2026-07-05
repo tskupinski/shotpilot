@@ -1,4 +1,4 @@
-"""Splicing the select sequence into a film. CLI: `vm sequence` / `vm montage`.
+"""Splicing the select sequence into a film. CLI: `shot sequence` / `shot montage`.
 
 Two paths: the default with crossfade transitions (`concat_xfade`, xfade chain
 = re-encode of the whole) and a draft one without transitions (`concat`, concat
@@ -7,7 +7,7 @@ demuxer, stream copy). Clips are uniformly re-encoded at cut time (X264_ARGS) �
 matching fps/sizes); a mismatch is an error to fix (re-render the faulty clip),
 not to mask. Audio is always dropped (`-an`): the splice is video-only, and a
 mix of clips with/without audio breaks stream copy. Music comes as a separate,
-cheap step AFTER the render (`vm music`, pipeline.music) — the mux does not
+cheap step AFTER the render (`shot music`, pipeline.music) — the mux does not
 touch the video render.
 """
 
@@ -148,7 +148,7 @@ def clip_starts(durations: list[float], xfade: float) -> list[float]:
 
     The only source of the timeline formula — used by both the render
     (`concat_xfade`: xfade transition offsets) and the timeline (`build_timeline`
-    for `vm locate`). A divergence of the two would mean locate points at
+    for `shot locate`). A divergence of the two would mean locate points at
     different clips than the ones actually playing.
     """
     starts, t = [], 0.0

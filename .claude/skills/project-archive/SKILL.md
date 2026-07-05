@@ -14,12 +14,12 @@ cache) and `input/` (source recordings). Archiving **moves, never deletes** —
 selects are the end product of the user's work.
 
 **Forbidden: never `rm -rf output/`** nor deleting files from `input/` —
-cleaning is what `vm archive` is for.
+cleaning is what `shot archive` is for.
 
 ## Step 1: Show what will be archived
 
 ```sh
-./vm status
+./shot status
 ```
 
 Present the user a summary (how many selects, variants, inputs) and agree the
@@ -35,8 +35,8 @@ archive).
 ## Step 3: Archiving
 
 ```sh
-./vm archive mountains-september-2024                # output/ -> archive/<date>_<name>/output/
-./vm archive mountains-september-2024 --with-input   # plus recordings from input/ -> .../input/
+./shot archive mountains-september-2024                # output/ -> archive/<date>_<name>/output/
+./shot archive mountains-september-2024 --with-input   # plus recordings from input/ -> .../input/
 ```
 
 Without `--with-input` the source recordings stay in `input/` — the user
@@ -46,7 +46,7 @@ an external drive).
 ## Step 4: Verify the clean start
 
 ```sh
-./vm status
+./shot status
 ```
 
 Should show 0 selects and (after `--with-input`) an empty input. Tell the user
@@ -55,10 +55,10 @@ where the archive is, and that they can drop new footage into `input/`.
 ## Restoring an archive
 
 ```sh
-./vm restore 2026-06-11_name     # or the full path archive/...
+./shot restore 2026-06-11_name     # or the full path archive/...
 ```
 
 The inverse of archiving: moves `output/` (and the archive's `input/` files,
 if present) back into the project. Requires an empty `output/` — with active
-work in progress, `vm archive` the current state first. Paths in the manifest
+work in progress, `shot archive` the current state first. Paths in the manifest
 are relative, so everything works after restoring.

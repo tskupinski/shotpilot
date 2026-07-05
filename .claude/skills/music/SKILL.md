@@ -11,16 +11,16 @@ description: >
 
 # Music — music for the montage
 
-Everything goes through `./vm music`; **costs, gates, building the prompt from
+Everything goes through `./shot music`; **costs, gates, building the prompt from
 tags, loop vs parts, mux defaults: `docs/decision-rules.md`, the "Music
-(`vm music`)" section** — read it before generating, do not reproduce the rules
+(`shot music`)" section** — read it before generating, do not reproduce the rules
 from memory.
 
 ## Step 0: State
 
 ```sh
-./vm status --json 2>/dev/null   # montage render fresh? music stale?
-./vm music                       # music state + credit balance
+./shot status --json 2>/dev/null   # montage render fresh? music stale?
+./shot music                       # music state + credit balance
 ```
 
 Precondition for generation: the user **has watched the render and accepted the
@@ -31,24 +31,24 @@ requires a fresh render (`render: fresh`).
 ## Step 1: Generation (COSTS MONEY — after prompt approval)
 
 Build the prompt from the sequence tags and the effective pace (mapping: the
-"Music (`vm music`)" section). **Always show the prompt to the user for
+"Music (`shot music`)" section). **Always show the prompt to the user for
 approval before sending**; only then:
 
 ```sh
-./vm music --generate "PROMPT" --apply    # takes the length from the render; --apply muxes immediately
+./shot music --generate "PROMPT" --apply    # takes the length from the render; --apply muxes immediately
 ```
 
 Film longer than the single-generation limit: loop or parts with prompt
-variation — the choice and seam planning per the rules ("Music (`vm music`)").
+variation — the choice and seam planning per the rules ("Music (`shot music`)").
 
 ## Step 2: Evaluation before/after the mux
 
 The agent cannot hear — it has to see:
 
 ```sh
-./vm music --probe output/music/TRACK.mp3   # duration, loudness, energy curve
-./vm music output/music/TRACK.mp3           # mux only -> output/cuts/main-final.mp4 (seconds)
-./vm music --probe output/cuts/main-final.mp4         # after the mux: loudness ≈ target, energy vs acts
+./shot music --probe output/music/TRACK.mp3   # duration, loudness, energy curve
+./shot music output/music/TRACK.mp3           # mux only -> output/cuts/main-final.mp4 (seconds)
+./shot music --probe output/cuts/main-final.mp4         # after the mux: loudness ≈ target, energy vs acts
 ```
 
 Match the track's climax to the dramaturgy of the sequence (highest energy where
@@ -60,7 +60,7 @@ the most dynamic clips are). After the mux, suggest the user listen to the
 - Iterating on the mux (different track, fades, `--loop`) is cheap — the video
   is not re-encoded; re-muxing existing tracks is free.
 - **Every mux is recorded in the manifest as `music.applied` — ALSO with a
-  custom `--out`** (unlike `vm publish --out`, which is a working variant).
+  custom `--out`** (unlike `shot publish --out`, which is a working variant).
   When comparing tracks A/B as separate files, the last mux becomes the official
   music state — finish the comparison by muxing the chosen track onto the
   default out.
