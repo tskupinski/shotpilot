@@ -63,6 +63,10 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt   # once
    questions asked, with a decision report in `output/autopilot-report.md`).
 3. Results: `output/selects/` (clips for the montage), `output/cuts/` (rendered
    films), `output/<name>/report.html` (smoothness reports).
+4. To review the agent's work visually, run `./shot ui` — a local, read-only
+   web UI with the selects gallery (thumbnails, stars, tags, decision notes),
+   the cut sequences and every source file, with in-browser playback of both
+   the clips and the original 4K footage.
 
 `./shot status` shows the whole project state at any point; the manifest
 `output/project.json` is the persistent source of truth for every decision.
@@ -77,6 +81,7 @@ exit != 0 on error). Full flag semantics: `./shot <command> --help`.
 | Command | Purpose |
 |---|---|
 | `./shot status` | project dashboard: inputs, selects with ratings/notes, sequence, render, music, publishing |
+| `./shot ui` | the same state as a read-only web UI: selects gallery, cut sequences, inputs — with video preview (localhost, blocks until Ctrl-C) |
 | `./shot scan FILE...` | smoothness analysis + contact sheet in one pass (mtime cache) |
 | `./shot sheet FILE...` | contact sheet alone (a scan already makes one) |
 | `./shot frames FILE T...` | 1280px evaluation frames at given seconds |

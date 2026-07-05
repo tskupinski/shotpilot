@@ -464,6 +464,10 @@
         <code>/shot-review</code>, <code>/montage</code> and <code>/autopilot</code> walk the agent
         through selection, pacing and editing. Every decision lands in a persistent manifest
         (<code>output/project.json</code>) — the source of truth across sessions.</p>
+        <p>Approving is visual, not archaeological: <code>./shot ui</code> opens a local, read-only
+        web view of the agent's work — the selects gallery with stars, tags and decision notes,
+        the cut sequences and every source file, with the clips and the original 4K footage
+        playable right in the browser.</p>
         <p>And everything also works by hand: <code>./shot</code> is a normal command-line tool with
         <code>--json</code> output, native batching and honest exit codes. No agent required.</p>
       </div>
@@ -528,6 +532,7 @@ the drift readable without feeling rushed.
     <span class="inline-code">--json</span>: result on stdout, logs on stderr, exit ≠ 0 on error.</p>
     <div class="cli-grid">
       <div class="cli-row"><code>./shot status</code><span>project dashboard: inputs, selects, sequence, render, music, publishing</span></div>
+      <div class="cli-row"><code>./shot ui</code><span>the same state as a read-only web UI — selects gallery, cuts, inputs, video preview</span></div>
       <div class="cli-row"><code>./shot scan</code><span>smoothness analysis + contact sheet in one pass (mtime cache)</span></div>
       <div class="cli-row"><code>./shot select</code><span>cut a select from the source, with stars, notes and resumable batch plans</span></div>
       <div class="cli-row"><code>./shot pace</code><span>screen pace (%/s) + speed-up recommendation; finds dull stretches to trim</span></div>
