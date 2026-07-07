@@ -58,11 +58,12 @@ main { padding: 16px 20px 60px; }
 
 /* ---- filters ---- */
 #filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
-#filters input[type=text], #filters select {
+#filters input[type=search], #filters select {
   font: inherit; color: var(--text); background: var(--panel);
   border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px;
 }
-#filters label { color: var(--dim); font-size: 13px; display: flex; gap: 6px; align-items: center; }
+#filters input[type=search] { width: 260px; }
+#filters .count { color: var(--faint); font-size: 12px; margin-left: auto; }
 
 /* ---- selects gallery ---- */
 #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
@@ -87,10 +88,13 @@ main { padding: 16px 20px 60px; }
   color: var(--bad); background: rgba(0,0,0,.72); border-radius: 4px;
   padding: 1px 6px; font-size: 11px;
 }
-/* signature: where the cut sits inside its source file */
+/* signature: where the cut(s) sit inside the source file */
 .ribbon { height: 4px; background: var(--border); position: relative; }
 .ribbon i { position: absolute; top: 0; bottom: 0; background: var(--gold); }
-.card.reject .ribbon i { background: var(--bad); }
+.card.reject .ribbon i, .ribbon i.bad { background: var(--bad); }
+/* input analyzed but nothing cut from it */
+.card.skipped .ph img { filter: grayscale(.6) brightness(.8); }
+.chip.warn { color: var(--stale); border-color: #4a3c1e; }
 .card .body { padding: 8px 10px 10px; }
 .card .top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
 .card .label { font-weight: 600; }
@@ -136,10 +140,24 @@ td img { width: 72px; aspect-ratio: 16/9; object-fit: cover; border-radius: 4px;
          border: 1px solid #4a3c1e; border-radius: 4px; padding: 0 5px; }
 tr.gone td { color: var(--faint); }
 
-/* ---- inputs ---- */
-tr.nosel td { background: rgba(217,164,65,.05); }
-.warn { color: var(--stale); cursor: pointer; }
-.warnlist { color: var(--dim); font-size: 12px; margin: 4px 0 0; padding-left: 18px; }
+/* ---- quick note ---- */
+#note {
+  position: fixed; right: 16px; bottom: 16px; width: 320px; z-index: 20;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.5);
+}
+#note .nhead {
+  display: flex; gap: 6px; align-items: center; padding: 6px 8px;
+  border-bottom: 1px solid var(--border); font-size: 12px; color: var(--dim);
+}
+#note .nhead span { margin-right: auto; }
+#note .nhead button { padding: 1px 8px; font-size: 12px; }
+#note textarea {
+  display: block; width: 100%; min-height: 96px; resize: vertical;
+  border: none; background: transparent; color: var(--text);
+  font-family: var(--mono); font-size: 12px; padding: 8px; outline: none;
+}
+.addnote { padding: 0 7px; font-size: 12px; line-height: 20px; white-space: nowrap; }
 
 /* ---- preview overlay ---- */
 #overlay {
@@ -190,11 +208,21 @@ tr.nosel td { background: rgba(217,164,65,.05); }
   <div id="panel"></div>
 </div>
 
+<div id="note" hidden>
+  <div class="nhead">
+    <span>quick note</span>
+    <button id="note-copy">Copy</button>
+    <button id="note-clear">Clear</button>
+    <button id="note-hide" title="hide (content stays)">×</button>
+  </div>
+  <textarea id="note-text" placeholder="clip names land here — add times, thoughts…"></textarea>
+</div>
+
 <script>
 "use strict";
 let DATA = null;
 const $ = (sel, el) => (el || document).querySelector(sel);
-const state = { q: "", stars: 0, rejected: false };
+const state = { q: "", stars: 0, rejected: "hide", sort: "order" }; // rejected: hide | show | only
 
 function h(tag, attrs, ...kids) {
   const el = document.createElement(tag);
@@ -253,28 +281,42 @@ function viewSelects(main) {
     main.append(h("div", { class: "msg" }, "No selects yet — cut some with ", h("code", {}, "shot select"), "."));
     return;
   }
+  const grid = h("div", { id: "grid" });
+  const empty = h("div", { class: "msg" }, "Nothing matches the filter.");
+  const count = h("span", { class: "count" });
+  // re-render only the grid, so the search input keeps focus while typing
+  const renderGrid = () => {
+    const match = s => {
+      if (state.rejected === "hide" && s.reject) return false;
+      if (state.rejected === "only" && !s.reject) return false;
+      if ((s.stars || 0) < state.stars) return false;
+      if (!state.q) return true;
+      const t = s.tags ? Object.values(s.tags).join(" ") : "";
+      return `${s.label} ${s.source} ${t} ${s.notes || ""}`.toLowerCase().includes(state.q);
+    };
+    const shown = sels.filter(match);
+    if (state.sort === "stars") shown.sort((a, b) => (b.stars || 0) - (a.stars || 0));
+    else if (state.sort === "duration") shown.sort((a, b) => (b.duration_s || 0) - (a.duration_s || 0));
+    grid.replaceChildren(...shown.map(card));
+    empty.style.display = shown.length ? "none" : "";
+    count.textContent = shown.length === sels.length
+      ? `${sels.length} selects` : `${shown.length} of ${sels.length}`;
+  };
   main.append(h("div", { id: "filters" },
-    h("input", { type: "text", placeholder: "Filter: label, source, tag…", value: state.q,
-      oninput: e => { state.q = e.target.value.toLowerCase(); render(); } }),
-    h("select", { onchange: e => { state.stars = +e.target.value; render(); } },
+    h("input", { type: "search", placeholder: "Filter: label, source, tag…  ( / )", value: state.q,
+      oninput: e => { state.q = e.target.value.toLowerCase(); renderGrid(); } }),
+    h("select", { onchange: e => { state.stars = +e.target.value; renderGrid(); } },
       [0, 1, 2, 3, 4, 5].map(n => h("option", { value: n, selected: state.stars === n ? "" : null },
         n ? "★".repeat(n) + " and up" : "any stars"))),
-    h("label", {},
-      h("input", { type: "checkbox", checked: state.rejected ? "" : null,
-        onchange: e => { state.rejected = e.target.checked; render(); } }),
-      "show rejected")));
-  const match = s => {
-    if (s.reject && !state.rejected) return false;
-    if ((s.stars || 0) < state.stars) return false;
-    if (!state.q) return true;
-    const t = s.tags ? Object.values(s.tags).join(" ") : "";
-    return `${s.label} ${s.source} ${t} ${s.notes || ""}`.toLowerCase().includes(state.q);
-  };
-  const shown = sels.filter(match);
-  const grid = h("div", { id: "grid" });
-  for (const s of shown) grid.append(card(s));
-  main.append(grid);
-  if (!shown.length) main.append(h("div", { class: "msg" }, "Nothing matches the filter."));
+    h("select", { onchange: e => { state.rejected = e.target.value; renderGrid(); } },
+      [["hide", "hide rejected"], ["show", "include rejected"], ["only", "only rejected"]]
+        .map(([v, t]) => h("option", { value: v, selected: state.rejected === v ? "" : null }, t))),
+    h("select", { onchange: e => { state.sort = e.target.value; renderGrid(); } },
+      [["order", "manifest order"], ["stars", "stars ↓"], ["duration", "duration ↓"]]
+        .map(([v, t]) => h("option", { value: v, selected: state.sort === v ? "" : null }, t))),
+    count));
+  main.append(grid, empty);
+  renderGrid();
 }
 
 function card(s) {
@@ -284,7 +326,8 @@ function card(s) {
       h("span", { class: "dur" }, fmtS(s.duration_s))),
     ribbon(s),
     h("div", { class: "body" },
-      h("div", { class: "top" }, h("span", { class: "label" }, s.label), stars(s.stars)),
+      h("div", { class: "top" }, h("span", { class: "label" }, s.label), stars(s.stars),
+        noteBtn(stem(s.file))),
       h("div", { class: "src" }, `${s.source_stem}  [${s.range[0]}–${s.range[1]}s]`),
       h("div", { class: "chips" }, tagChips(s),
         variants.map(v => h("span", { class: "chip var" }, "x" + v))),
@@ -350,38 +393,143 @@ function viewCuts(main) {
 }
 
 /* ----------------------------------------------------------------- inputs */
+const istate = { q: "", pick: "all" }; // pick: all | picked | skipped | unanalyzed
+
+function inputRibbon(i) {
+  const sels = DATA.selects.filter(s => s.source === i.file && s.range);
+  if (!i.duration || !sels.length) return null;
+  const rb = h("div", { class: "ribbon" });
+  for (const s of sels)
+    rb.append(h("i", { class: s.reject ? "bad" : null,
+      title: `${s.label} [${s.range[0]}–${s.range[1]}s]`,
+      style: `left:${(s.range[0] / i.duration) * 100}%;` +
+             `width:${Math.max(((s.range[1] - s.range[0]) / i.duration) * 100, 0.8)}%` }));
+  return rb;
+}
+
+function selectChips(i, klass) {
+  return i.selects.map(f => {
+    const sel = DATA.selects.find(s => s.file === f);
+    return h("span", { class: klass, style: "cursor:pointer",
+      onclick: e => { e.stopPropagation(); if (sel) openPreview(sel); } },
+      sel ? sel.label : stem(f));
+  });
+}
+
+function inputCard(i) {
+  const skipped = i.analyzed && !i.selects.length;
+  const warns = (i.warnings || []).length;
+  return h("div", { class: "card" + (skipped ? " skipped" : ""),
+      onclick: () => openInputPreview(i) },
+    h("div", { class: "ph" },
+      i.exists ? h("img", { src: i.thumb, loading: "lazy", alt: i.stem })
+               : h("div", { class: "missing" }, "source offline — SD card?"),
+      i.duration ? h("span", { class: "dur" }, fmtS(i.duration)) : null),
+    inputRibbon(i),
+    h("div", { class: "body" },
+      h("div", { class: "top" },
+        h("span", { class: "label" }, i.stem),
+        h("span", { class: "src" }, i.analyzed ? `kept ${i.kept_pct}%` : "not scanned"),
+        noteBtn(i.stem)),
+      h("div", { class: "chips" },
+        selectChips(i, "chip role"),
+        skipped ? h("span", { class: "chip untagged" }, "no selects") : null,
+        warns ? h("span", { class: "chip warn", title: i.warnings.join("\n") }, `⚠ ${warns}`) : null),
+      h("div", { class: "facts" },
+        h("span", {}, i.file.split("/").pop()),
+        i.contact_url ? h("a", { href: i.contact_url, target: "_blank",
+          onclick: e => e.stopPropagation() }, "contact sheet") : null)));
+}
+
 function viewInputs(main) {
-  if (!DATA.inputs.length) {
+  const ins = DATA.inputs;
+  if (!ins.length) {
     main.append(h("div", { class: "msg" },
       `No videos in ${DATA.input_dir}/ — SD card unplugged?`));
     return;
   }
-  const rows = DATA.inputs.map(i => {
-    const noSel = i.analyzed && !i.selects.length;
-    const warns = (i.warnings || []).length;
-    const tr = h("tr", { class: noSel ? "nosel" : "" },
-      h("td", { class: "mono" }, i.file.split("/").pop()),
-      h("td", {}, i.analyzed ? "✓" : "·"),
-      h("td", { class: "t" }, i.analyzed ? fmtS(i.duration) : ""),
-      h("td", { class: "t" }, i.kept_pct != null ? i.kept_pct + "%" : ""),
-      h("td", {}, warns ? h("span", { class: "warn", title: "show",
-        onclick: e => { e.stopPropagation();
-          const ul = h("ul", { class: "warnlist" }, i.warnings.map(w => h("li", {}, w)));
-          e.target.replaceWith(ul); } }, `⚠ ${warns}`) : ""),
-      h("td", {}, i.contact_url ? h("a", { href: i.contact_url, target: "_blank" }, "contact sheet") : ""),
-      h("td", {}, h("div", { class: "chips" },
-        i.selects.map(f => {
-          const sel = DATA.selects.find(s => s.file === f);
-          return h("span", { class: "chip", style: "cursor:pointer",
-            onclick: () => sel && openPreview(sel) }, sel ? sel.label : stem(f));
-        }),
-        noSel ? h("span", { class: "chip untagged" }, "no selects") : null)));
-    return tr;
-  });
-  main.append(h("div", { class: "cut" }, h("table", {},
-    h("thead", {}, h("tr", {}, ["file", "scan", "dur", "kept", "", "artifacts", "selects"].map(t => h("th", {}, t)))),
-    h("tbody", {}, rows))));
+  const grid = h("div", { id: "grid" });
+  const empty = h("div", { class: "msg" }, "Nothing matches the filter.");
+  const count = h("span", { class: "count" });
+  const renderGrid = () => {
+    const match = i => {
+      if (istate.pick === "picked" && !i.selects.length) return false;
+      if (istate.pick === "skipped" && !(i.analyzed && !i.selects.length)) return false;
+      if (istate.pick === "unanalyzed" && i.analyzed) return false;
+      return !istate.q || i.file.toLowerCase().includes(istate.q);
+    };
+    const shown = ins.filter(match);
+    grid.replaceChildren(...shown.map(inputCard));
+    empty.style.display = shown.length ? "none" : "";
+    count.textContent = shown.length === ins.length
+      ? `${ins.length} inputs` : `${shown.length} of ${ins.length}`;
+  };
+  main.append(h("div", { id: "filters" },
+    h("input", { type: "search", placeholder: "Filter: file name…  ( / )", value: istate.q,
+      oninput: e => { istate.q = e.target.value.toLowerCase(); renderGrid(); } }),
+    h("select", { onchange: e => { istate.pick = e.target.value; renderGrid(); } },
+      [["all", "all inputs"], ["picked", "with selects"],
+       ["skipped", "skipped (no selects)"], ["unanalyzed", "not scanned"]]
+        .map(([v, t]) => h("option", { value: v, selected: istate.pick === v ? "" : null }, t))),
+    count));
+  main.append(grid, empty);
+  renderGrid();
 }
+
+function openInputPreview(i) {
+  const panel = panelShell(i.stem,
+    i.analyzed ? `${fmtS(i.duration)} · kept ${i.kept_pct}%` : "not scanned");
+  if (i.exists && i.url)
+    panel.append(h("video", { controls: "", autoplay: "", preload: "metadata", src: i.url }));
+  else
+    panel.append(h("div", { class: "msg" }, "source offline — SD card?"));
+  const rb = inputRibbon(i);
+  if (rb) panel.append(rb);
+  const row = h("div", { class: "row2" }, h("div", { class: "chips" }, selectChips(i, "chip role")));
+  if (i.analyzed && !i.selects.length)
+    row.append(h("span", { class: "hint" }, "no selects cut from this input"));
+  if (i.contact_url)
+    row.append(h("a", { href: i.contact_url, target: "_blank" }, "contact sheet"));
+  row.append(noteBtn(i.stem, "✎ add to note"));
+  panel.append(row);
+  for (const w of i.warnings || [])
+    panel.append(h("div", { class: "row2 hint" }, "⚠ " + w));
+  if (/\.(mts|mkv|avi)$/.test(i.file.toLowerCase()))
+    panel.append(h("div", { class: "row2 hint" }, "source format may not play in-browser"));
+}
+
+/* ------------------------------------------------------------- quick note */
+const noteBox = $("#note"), noteText = $("#note-text");
+noteText.value = localStorage.getItem("shotpilot-note") || "";
+noteBox.hidden = !noteText.value;
+noteText.addEventListener("input",
+  () => localStorage.setItem("shotpilot-note", noteText.value));
+
+function addToNote(name) {
+  const sep = noteText.value && !noteText.value.endsWith("\n") ? "\n" : "";
+  noteText.value += sep + name + " ";
+  localStorage.setItem("shotpilot-note", noteText.value);
+  noteBox.hidden = false;
+  noteText.focus(); // caret at the end — type the time range right away
+  noteText.setSelectionRange(noteText.value.length, noteText.value.length);
+  noteText.scrollTop = noteText.scrollHeight;
+}
+
+function noteBtn(name, label) {
+  return h("button", { class: "addnote", title: "add to note",
+    onclick: e => { e.stopPropagation(); addToNote(name); } }, label || "✎+");
+}
+
+$("#note-copy").addEventListener("click", async e => {
+  try { await navigator.clipboard.writeText(noteText.value); }
+  catch { noteText.select(); document.execCommand("copy"); }
+  const b = e.target;
+  b.textContent = "Copied!"; setTimeout(() => { b.textContent = "Copy"; }, 900);
+});
+$("#note-clear").addEventListener("click", () => {
+  noteText.value = ""; localStorage.removeItem("shotpilot-note");
+});
+$("#note-hide").addEventListener("click", () => { noteBox.hidden = true; });
 
 /* ---------------------------------------------------------------- preview */
 function closePreview() {
@@ -423,6 +571,7 @@ function openPreview(sel, use) {
   } else {
     row.append(h("span", { class: "hint" }, "source offline — SD card?"));
   }
+  row.append(noteBtn(stem(sel.file), "✎ add to note"));
   panel.append(row);
   if (sel.notes) panel.append(h("div", { class: "row2 hint" }, sel.notes));
   const lower = sel.source.toLowerCase();
@@ -485,7 +634,13 @@ async function load() {
 
 $("#refresh").addEventListener("click", load);
 $("#overlay").addEventListener("click", e => { if (e.target.id === "overlay") closePreview(); });
-document.addEventListener("keydown", e => { if (e.key === "Escape") closePreview(); });
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") { closePreview(); return; }
+  if (e.key === "/" && !e.target.matches("input, select, textarea, video")) {
+    const search = $("#filters input"); // selects tab only
+    if (search) { e.preventDefault(); search.focus(); }
+  }
+});
 window.addEventListener("hashchange", render);
 load();
 </script>

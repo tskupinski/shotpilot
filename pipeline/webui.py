@@ -2,9 +2,9 @@
 
 One page (webui.html) fed by /api/status (the `shot status` payload plus URLs
 and exists-flags), video streamed straight from disk with HTTP Range from two
-whitelisted roots (output/ and the input dir), select poster thumbnails
-generated on demand into output/ui-cache/thumbs/ (mtime cache, like
-motion.csv). Strictly read-only by construction: GET/HEAD only and no
+whitelisted roots (output/ and the input dir), poster thumbnails (selects
+and inputs) generated on demand into output/ui-cache/thumbs/ (mtime cache,
+like motion.csv). Strictly read-only by construction: GET/HEAD only and no
 manifest writer is ever imported here.
 """
 
@@ -113,6 +113,9 @@ def build_ui_payload() -> dict:
         contact = paths.video_dir(i["stem"]) / "contact.png"
         i["contact_url"] = media_url(str(contact)) if contact.is_file() else None
         i["selects"] = by_source.get(i["file"], [])
+        i["url"] = media_url(i["file"])
+        i["exists"] = Path(i["file"]).is_file()
+        i["thumb"] = f"/thumb/input/{urllib.parse.quote(i['stem'])}.jpg"
     for name, c in payload["cuts"].items():
         cut = manifest.get_cut(data, name)
         rows = sequence.sequence_view(cut, payload["selects"])[0]["sequence"]
@@ -131,23 +134,44 @@ def build_ui_payload() -> dict:
 
 # -------------------------------------------------------------- thumbnails
 
-def thumb_for(entry: dict) -> Path | None:
-    """Cached-or-generated poster of a select (midpoint frame), None if the
-    select file is missing. Atomic tmp+replace — concurrent racers are safe."""
-    src = Path(entry["file"])
+def _poster(src: Path, at: float, thumb: Path) -> Path | None:
+    """Cached-or-generated poster frame of `src` at `at` seconds, None if the
+    source file is missing. Atomic tmp+replace — concurrent racers are safe."""
     if not src.is_file():
         return None
-    thumb = paths.UI_CACHE / "thumbs" / f"{src.stem}.jpg"
     if thumb.is_file() and thumb.stat().st_mtime >= src.stat().st_mtime:
         return thumb
     thumb.parent.mkdir(parents=True, exist_ok=True)
-    rng = entry.get("range") or (0, 0)
-    tmp = thumb.with_name(f"{src.stem}.{threading.get_ident()}.part.jpg")
+    tmp = thumb.with_name(f"{thumb.stem}.{threading.get_ident()}.part.jpg")
     with _THUMB_SEM:
-        ffmpeg.extract_frame(src, max((rng[1] - rng[0]) / 2, 0.0), tmp,
-                             width=THUMB_WIDTH)
+        ffmpeg.extract_frame(src, at, tmp, width=THUMB_WIDTH)
     os.replace(tmp, thumb)
     return thumb
+
+
+def thumb_for(entry: dict) -> Path | None:
+    """Poster of a select: midpoint frame of the cut."""
+    src = Path(entry["file"])
+    rng = entry.get("range") or (0, 0)
+    return _poster(src, max((rng[1] - rng[0]) / 2, 0.0),
+                   paths.UI_CACHE / "thumbs" / f"{src.stem}.jpg")
+
+
+def input_thumb(stem: str) -> Path | None:
+    """Poster of an input source: midpoint frame (1 s in when unanalyzed).
+
+    Separate cache subdir — an input stem may equal a select stem."""
+    input_dir = config.input_dir()
+    src = next((f for f in sorted(input_dir.iterdir())
+                if f.stem == stem and f.suffix.lower() in status.VIDEO_EXT),
+               None) if input_dir.exists() else None
+    if src is None:
+        return None
+    summary = paths.video_dir(stem) / "summary.json"
+    at = 1.0
+    if summary.is_file():
+        at = json.loads(summary.read_text())["video"]["duration"] / 2
+    return _poster(src, at, paths.UI_CACHE / "thumbs" / "input" / f"{stem}.jpg")
 
 
 # ------------------------------------------------------------------ server
@@ -195,6 +219,10 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/status":
             body = json.dumps(build_ui_payload(), ensure_ascii=False).encode()
             self._send_bytes(body, MIME[".json"], head, "no-store")
+        elif path.startswith("/thumb/input/"):
+            stem = urllib.parse.unquote(
+                path.removeprefix("/thumb/input/")).removesuffix(".jpg")
+            self._file(input_thumb(stem), head)
         elif path.startswith("/thumb/"):
             self._thumb(path.removeprefix("/thumb/"), head)
         elif path.startswith("/media/output/"):
