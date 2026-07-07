@@ -178,6 +178,11 @@ tr.gone td { color: var(--faint); }
 #panel .row2 { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
 #panel .hint { color: var(--faint); font-size: 12px; }
 #srcwrap { display: none; }
+.navarrow {
+  position: fixed; top: 50%; transform: translateY(-50%); z-index: 11;
+  font-size: 26px; line-height: 1; padding: 12px 14px; border-radius: 8px;
+}
+#nav-prev { left: 14px; } #nav-next { right: 14px; }
 
 @media (max-width: 640px) {
   header, nav, main { padding-left: 12px; padding-right: 12px; }
@@ -205,7 +210,9 @@ tr.gone td { color: var(--faint); }
 <main id="main"><div class="msg">Loading…</div></main>
 
 <div id="overlay">
+  <button id="nav-prev" class="navarrow" title="previous (←)" hidden>‹</button>
   <div id="panel"></div>
+  <button id="nav-next" class="navarrow" title="next (→)" hidden>›</button>
 </div>
 
 <div id="note" hidden>
@@ -297,7 +304,7 @@ function viewSelects(main) {
     const shown = sels.filter(match);
     if (state.sort === "stars") shown.sort((a, b) => (b.stars || 0) - (a.stars || 0));
     else if (state.sort === "duration") shown.sort((a, b) => (b.duration_s || 0) - (a.duration_s || 0));
-    grid.replaceChildren(...shown.map(card));
+    grid.replaceChildren(...shown.map((s, i) => card(s, shown, i)));
     empty.style.display = shown.length ? "none" : "";
     count.textContent = shown.length === sels.length
       ? `${sels.length} selects` : `${shown.length} of ${sels.length}`;
@@ -319,9 +326,10 @@ function viewSelects(main) {
   renderGrid();
 }
 
-function card(s) {
+function card(s, list, at) {
   const variants = Object.keys(s.speed_variants || {});
-  return h("div", { class: "card" + (s.reject ? " reject" : ""), onclick: () => openPreview(s) },
+  return h("div", { class: "card" + (s.reject ? " reject" : ""),
+      onclick: () => openNav(list, at, x => openPreview(x)) },
     h("div", { class: "ph" }, thumbEl(s),
       h("span", { class: "dur" }, fmtS(s.duration_s))),
     ribbon(s),
@@ -367,12 +375,16 @@ function viewCuts(main) {
     if (c.notes) cut.append(h("div", { class: "cnote" }, "note: " + c.notes));
     if (c.sequence.length) {
       const rows = []; let at = 0;
+      // prev/next in the preview walks the sequence (rows whose select is known)
+      const navItems = c.sequence.filter(e => bySelect[e.select]);
+      const navOpen = e => openPreview(bySelect[e.select], e.use);
       for (const e of c.sequence) {
         const sel = bySelect[e.select];
         const speed = sel && e.use !== sel.file
           ? Object.entries(sel.speed_variants || {}).find(([, v]) => v === e.use)?.[0] : null;
         rows.push(h("tr", { class: "row" + (e.use_exists ? "" : " gone"),
-            onclick: () => sel ? openPreview(sel, e.use) : (e.use_url && openVideo(stem(e.use), e.use_url)) },
+            onclick: () => sel ? openNav(navItems, navItems.indexOf(e), navOpen)
+                               : (e.use_url && openVideo(stem(e.use), e.use_url)) },
           h("td", { class: "n" }, e.n),
           h("td", {}, sel && sel.exists ? h("img", { src: sel.thumb, loading: "lazy", alt: "" }) : null),
           h("td", {}, sel ? sel.label : stem(e.use),
@@ -416,11 +428,11 @@ function selectChips(i, klass) {
   });
 }
 
-function inputCard(i) {
+function inputCard(i, list, at) {
   const skipped = i.analyzed && !i.selects.length;
   const warns = (i.warnings || []).length;
   return h("div", { class: "card" + (skipped ? " skipped" : ""),
-      onclick: () => openInputPreview(i) },
+      onclick: () => openNav(list, at, x => openInputPreview(x)) },
     h("div", { class: "ph" },
       i.exists ? h("img", { src: i.thumb, loading: "lazy", alt: i.stem })
                : h("div", { class: "missing" }, "source offline — SD card?"),
@@ -459,7 +471,7 @@ function viewInputs(main) {
       return !istate.q || i.file.toLowerCase().includes(istate.q);
     };
     const shown = ins.filter(match);
-    grid.replaceChildren(...shown.map(inputCard));
+    grid.replaceChildren(...shown.map((i, at) => inputCard(i, shown, at)));
     empty.style.display = shown.length ? "none" : "";
     count.textContent = shown.length === ins.length
       ? `${ins.length} inputs` : `${shown.length} of ${ins.length}`;
@@ -532,13 +544,38 @@ $("#note-clear").addEventListener("click", () => {
 $("#note-hide").addEventListener("click", () => { noteBox.hidden = true; });
 
 /* ---------------------------------------------------------------- preview */
+/* prev/next within the list the preview was opened from (filtered gallery
+   or cut sequence); anything opened outside a list has no arrows */
+let nav = null; // { items, index, open }
+
+function updateArrows() {
+  $("#nav-prev").hidden = !nav || nav.index <= 0;
+  $("#nav-next").hidden = !nav || nav.index >= nav.items.length - 1;
+}
+
+function openNav(items, index, open) {
+  open(items[index]); // panelShell clears nav — set it after
+  nav = { items, index, open };
+  updateArrows();
+}
+
+function navStep(d) {
+  if (!nav) return;
+  const i = nav.index + d;
+  if (i >= 0 && i < nav.items.length) openNav(nav.items, i, nav.open);
+}
+
 function closePreview() {
   for (const v of document.querySelectorAll("#panel video")) { v.pause(); v.removeAttribute("src"); v.load(); }
   $("#overlay").classList.remove("open");
+  nav = null;
+  updateArrows();
 }
 
 function panelShell(title, sub) {
   const panel = $("#panel");
+  nav = null;
+  updateArrows();
   panel.replaceChildren(h("div", { class: "top" },
     h("h3", {}, title), sub ? h("span", { class: "mono" }, sub) : null,
     h("button", { class: "close", onclick: closePreview }, "Close")));
@@ -634,8 +671,15 @@ async function load() {
 
 $("#refresh").addEventListener("click", load);
 $("#overlay").addEventListener("click", e => { if (e.target.id === "overlay") closePreview(); });
+$("#nav-prev").addEventListener("click", () => navStep(-1));
+$("#nav-next").addEventListener("click", () => navStep(1));
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") { closePreview(); return; }
+  if (!e.target.matches("input, select, textarea, video") &&
+      $("#overlay").classList.contains("open")) {
+    if (e.key === "ArrowLeft") { e.preventDefault(); navStep(-1); return; }
+    if (e.key === "ArrowRight") { e.preventDefault(); navStep(1); return; }
+  }
   if (e.key === "/" && !e.target.matches("input, select, textarea, video")) {
     const search = $("#filters input"); // selects tab only
     if (search) { e.preventDefault(); search.focus(); }
