@@ -32,6 +32,16 @@ def has_encoder(name: str) -> bool:
     return any(line.split()[1:2] == [name] for line in res.stdout.splitlines())
 
 
+@functools.lru_cache(maxsize=None)
+def has_filter(name: str) -> bool:
+    """True when this ffmpeg build lists the filter (`ffmpeg -filters`)."""
+    res = subprocess.run(["ffmpeg", "-hide_banner", "-filters"],
+                         stdin=subprocess.DEVNULL, capture_output=True, text=True)
+    if res.returncode != 0:
+        return False
+    return any(line.split()[1:2] == [name] for line in res.stdout.splitlines())
+
+
 def run(args: list, capture: bool = False) -> subprocess.CompletedProcess:
     """`ffmpeg -nostdin -y -v error *args`; capture=True collects stdout (bytes)."""
     return subprocess.run(

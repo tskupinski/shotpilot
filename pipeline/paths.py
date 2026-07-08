@@ -18,6 +18,7 @@ SMOOTH_CACHE = OUTPUT / "smooth-cache"
 MUSIC = OUTPUT / "music"
 PUBLISH = OUTPUT / "publish"
 UI_CACHE = OUTPUT / "ui-cache"
+GRADE_PREVIEW = OUTPUT / "grade-preview"
 
 
 def video_dir(stem: str) -> Path:

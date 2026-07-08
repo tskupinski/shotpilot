@@ -28,8 +28,12 @@ def render_grid(
     title: str,
     out_path: Path,
     cols: int = 5,
+    labels: list[str] | None = None,
 ) -> Path:
-    """Draws a grid of frames (BGR) with timestamps to a PNG."""
+    """Draws a grid of frames (BGR) with timestamps to a PNG.
+
+    `labels` replaces the default t=..s titles (grade previews label frames
+    with clip name + RAW/GRADED state instead of times)."""
     if not frames_bgr:
         raise ValueError("no frames for the sheet")
     h, w = frames_bgr[0].shape[:2]
@@ -42,7 +46,7 @@ def render_grid(
         ax.set_xticks([]), ax.set_yticks([])
         # scan passes raw frame timestamps (e.g. 1.96029) — display rounded, the
         # labels are meant to be typed back into `shot frames` / `shot select`
-        ax.set_title(f"t={round(t, 1):g}s", fontsize=8)
+        ax.set_title(labels[i] if labels else f"t={round(t, 1):g}s", fontsize=8)
     fig.tight_layout()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, bbox_inches="tight")

@@ -108,6 +108,7 @@ exit != 0 on error). Full flag semantics: `./shot <command> --help`.
 | `./shot montage` | splice the sequence (crossfade = re-encode; `--xfade 0` = stream-copy draft; `--smooth` = motion interpolation for mixed frame rates) |
 | `./shot smooth [CLIP...]` | warm the interpolation cache before a final `--smooth` render |
 | `./shot locate [T \| FILE]` | read-only mapping montage timeline ↔ source shots |
+| `./shot grade` | color grading, non-destructive (baked at montage render): `--analyze` color stats, per-select corrections, the cut's look (`--look` preset / `--look-lut` .cube), log normalize (`--source --input-lut`), `--preview` before/after grid |
 | `./shot music` | `--generate` (Stable Audio, paid), `--probe` (loudness/energy analysis), `TRACK...` = mux onto the render |
 | `./shot publish` | YT thumbnail (`--frame`), title + description (`--title --description-file`) |
 | `./shot archive NAME` | move the whole `output/` state to `archive/<date>_<name>/` + clean start; `shot restore` reverses it |
@@ -163,7 +164,6 @@ the agent workflows in `.claude/skills/` all point there.
 ## Roadmap / open topics
 
 - Output structure for multiple projects (currently one project = one `output/`).
-- Extending shot review with exposure/color analysis.
 
 ## License
 

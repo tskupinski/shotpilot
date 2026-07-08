@@ -16,7 +16,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import (config, contact, manifest,
+from . import (config, contact, grade as grade_mod, manifest,
                montage as montage_mod, motion, music as music_mod,
                ffmpeg, locate as locate_mod, pace as pace_mod, paths,
                publish as publish_mod, scan as scan_mod,
@@ -466,13 +466,14 @@ def cmd_montage(args) -> int:
         return 1
     external = bool(args.files)
     mont = {}
+    data = manifest.load()
     if external:
         if not args.out:
             log("--files requires --out (so the cut's render is not overwritten)")
             return 1
         files = list(args.files)
     else:
-        mont = manifest.get_cut(manifest.load(), args.cut)
+        mont = manifest.get_cut(data, args.cut)
         seq = mont.get("sequence", [])
         if not seq:
             log(f"cut \"{args.cut}\" sequence is empty — `shot sequence --cut {args.cut} "
@@ -488,12 +489,20 @@ def cmd_montage(args) -> int:
     smooth = args.smooth and xfade > 0
     draft = args.draft and xfade > 0
     out = args.out or paths.cut_render(args.cut)
-    # Identical render already recorded and fresh -> skip (before any ffprobe).
-    # Matching a non-draft record also satisfies a --draft request (the final
-    # render is strictly better); the reverse never skips.
+    # Per-clip grade chains (normalize -> correct -> look, grade.py); an
+    # external render carries the clip-level layers but no look (no cut
+    # context). None = fully ungraded — nothing changes downstream.
+    snapshot = grade_mod.grade_snapshot(
+        [str(f) for f in files], data["selects"],
+        None if external else mont.get("grade"), data.get("sources"))
+    chains = snapshot["clips"] if snapshot else None
+    # Identical render already recorded and fresh -> skip (before any ffprobe;
+    # render_state also compares the grade snapshot). Matching a non-draft
+    # record also satisfies a --draft request (the final render is strictly
+    # better); the reverse never skips.
     rec = mont.get("render") or {}
     if (not external and not args.force
-            and montage_mod.render_state(mont)["state"] == montage_mod.STATE_FRESH
+            and montage_mod.render_state(mont, data)["state"] == montage_mod.STATE_FRESH
             and rec.get("out") == str(out)
             and rec.get("xfade_s") == xfade
             and bool(rec.get("smooth")) == smooth
@@ -532,22 +541,33 @@ def cmd_montage(args) -> int:
             "no interpolation)")
     if args.draft and xfade == 0:
         log("--draft skipped: --xfade 0 is stream copy already (no re-encode)")
+    grade_applied = None
     if xfade > 0:
         encode = montage_mod.draft_args() if draft else None
+        graded = f", grade: {snapshot['look'] or 'corrections only'}" if snapshot else ""
         if smooth:
             log(f"Splicing {len(files)} clips with crossfade {xfade:g} s + motion "
-                f"interpolation (--smooth) -> {out} (re-encode + minterpolate on clips "
+                f"interpolation (--smooth){graded} -> {out} (re-encode + minterpolate on clips "
                 f"with a different fps — MUCH slower, expect hours for long footage) ...")
         elif draft:
-            log(f"Splicing {len(files)} clips with crossfade {xfade:g} s -> {out} "
+            log(f"Splicing {len(files)} clips with crossfade {xfade:g} s{graded} -> {out} "
                 f"(DRAFT encode: {encode[1]} — preview quality, re-render without "
                 f"--draft before music/publish) ...")
         else:
-            log(f"Splicing {len(files)} clips with crossfade {xfade:g} s -> {out} "
+            log(f"Splicing {len(files)} clips with crossfade {xfade:g} s{graded} -> {out} "
                 f"(re-encode, ~{expected * 4 / 60:.0f} min) ...")
         montage_mod.concat_xfade(files, out, xfade, smooth=smooth,
-                                 fields=fields, encode=encode)
+                                 fields=fields, encode=encode, vf=chains)
+        grade_applied = snapshot
+    elif chains and len(files) == 1 and args.xfade > 0:
+        # a single graded clip: stream copy would drop the grade -> encode
+        log(f"Rendering 1 graded clip (re-encode) -> {out} ...")
+        montage_mod.concat_xfade(files, out, 0.0, fields=fields, vf=chains)
+        grade_applied = snapshot
     else:
+        if snapshot:
+            log("WARNING: grades NOT applied — --xfade 0 splices with stream "
+                "copy (no re-encode); render with --xfade > 0 for the graded film")
         log(f"Splicing {len(files)} clips (hard cuts, no re-encode) -> {out} ...")
         montage_mod.concat(files, out)
     out_info = probe(out)
@@ -571,14 +591,16 @@ def cmd_montage(args) -> int:
                                 "expected_s": round(expected, 2),
                                 "duration_s": round(out_info.duration, 2),
                                 "clip_durations_s": [round(d, 3) for d in durs],
-                                "files": [str(f) for f in files]},
+                                "files": [str(f) for f in files],
+                                "grade": grade_applied},
                                cut=args.cut)
+    graded = f", grade: {grade_applied['look'] or 'corrections'}" if grade_applied else ""
     human = (f"{out} ({len(files)} clips, {out_info.duration:.1f} s, "
              f"crossfade {xfade:g} s{', smooth' if smooth else ''}"
-             f"{', DRAFT' if draft else ''})" if xfade > 0 else
-             f"{out} ({len(files)} clips, {out_info.duration:.1f} s, hard cuts)")
+             f"{', DRAFT' if draft else ''}{graded})" if xfade > 0 else
+             f"{out} ({len(files)} clips, {out_info.duration:.1f} s, hard cuts{graded})")
     emit({"out": str(out), "clips": len(files), "xfade": xfade, "smooth": smooth,
-          "draft": draft,
+          "draft": draft, "graded": bool(grade_applied),
           "duration": round(out_info.duration, 2), "expected": round(expected, 2),
           "render_state": (montage_mod.STATE_EXTERNAL if external
                            else montage_mod.STATE_FRESH)},
@@ -639,7 +661,7 @@ def cmd_locate(args) -> int:
             log(f"cut \"{args.cut}\" sequence is empty — `shot sequence --cut {args.cut} "
                 f"FILE...` or provide `--files FILE...`")
             return 1
-        state = montage_mod.render_state(mont)
+        state = montage_mod.render_state(mont, data)
     render = mont.get("render") or {}
     xfade = args.xfade if args.xfade is not None else render.get("xfade_s")
     if xfade is None:
@@ -908,6 +930,236 @@ def cmd_publish(args) -> int:
                             f"\"{th['text']}\")" if th else "—"),
              "Template: " + (f"{tpl} ✓" if tpl.exists()
                             else f"{tpl} MISSING — copy publish-template.example.txt")]
+    emit(payload, args.json, "\n".join(lines))
+    return 0
+
+
+def _grade_correct(args) -> int:
+    """Sets/clears per-select corrections (batch); neutral values drop the key."""
+    params = {k: getattr(args, k) for k in grade_mod.RANGES
+              if getattr(args, k) is not None}
+    if args.clear and params:
+        log("--clear and correction flags are mutually exclusive")
+        return 1
+    errs = grade_mod.validate_correction(params)
+    if errs:
+        for e in errs:
+            log(e)
+        return 1
+    cf = grade_mod.correction_filter(params)
+    if cf:
+        missing = grade_mod.missing_filters(cf)
+        if missing:
+            log(f"this ffmpeg build lacks filters: {', '.join(missing)} "
+                f"(exposure/colortemperature need ffmpeg >= 5.0)")
+            return 1
+
+    def one(f: Path) -> dict:
+        # a _x* variant resolves to its select (retimed frames, same grade)
+        entry = montage_mod.resolve_use(str(f), manifest.load()["selects"])
+        if entry is None:
+            raise ValueError("not a select (or its variant) in the manifest")
+        if args.clear:
+            manifest.set_select_grade(entry["file"], None)
+            return {"file": entry["file"], "grade": None}
+        merged = {**(entry.get("grade") or {}), **params}
+        merged = {k: v for k, v in merged.items() if v != grade_mod.NEUTRAL[k]}
+        manifest.set_select_grade(entry["file"], merged or None)
+        return {"file": entry["file"], "grade": merged or None,
+                "filter": grade_mod.correction_filter(merged)}
+
+    results, rc = _batch(args.files, one)
+    emit({"results": results}, args.json,
+         "\n".join(f"{r['file']}: {r.get('filter') or '— (neutral)'}"
+                   if "error" not in r else f"{r['file']}: ERROR {r['error']}"
+                   for r in results))
+    return rc
+
+
+def _grade_look(args) -> int:
+    """Sets/clears the cut's creative look (preset or user .cube)."""
+    if args.clear_look:
+        manifest.set_cut_grade(None, cut=args.cut)
+        emit({"cut": args.cut, "grade": None}, args.json,
+             f"look of cut \"{args.cut}\" removed")
+        return 0
+    if args.look and args.look_lut:
+        log("--look and --look-lut are mutually exclusive (one look per cut)")
+        return 1
+    if args.look:
+        if args.look not in grade_mod.LOOKS:
+            log(f"unknown look: {args.look} — available: "
+                f"{', '.join(grade_mod.LOOKS)} (or --look-lut CUBE)")
+            return 1
+        missing = grade_mod.missing_filters(grade_mod.LOOKS[args.look])
+        if missing:
+            log(f"this ffmpeg build lacks filters for \"{args.look}\": "
+                f"{', '.join(missing)} (ffmpeg >= 5.0 needed)")
+            return 1
+        grade = {"look": args.look}
+    else:
+        err = grade_mod.check_lut_file(args.look_lut)
+        if err:
+            log(err)
+            return 1
+        grade = {"lut": str(args.look_lut)}
+    manifest.set_cut_grade(grade, cut=args.cut)
+    emit({"cut": args.cut, "grade": grade}, args.json,
+         f"cut \"{args.cut}\" look: {args.look or args.look_lut} — preview with "
+         f"`shot grade --preview`, bake with `shot montage`")
+    return 0
+
+
+def _grade_source(args) -> int:
+    """The source's normalize layer (manifest "sources"): log profile + input LUT."""
+    src = str(args.source)
+    if args.clear:
+        manifest.set_source_grade(src, None)
+        emit({"source": src, "grade": None}, args.json, f"{src}: normalize removed")
+        return 0
+    if not args.input_lut and not args.profile:
+        log("--source requires --input-lut and/or --profile (or --clear)")
+        return 1
+    data = manifest.load()
+    if not any(s.get("source") == src for s in data["selects"]) \
+            and not Path(src).exists():
+        log(f"note: {src} is not on disk and no select references it "
+            f"(the entry still lands in the manifest)")
+    fields = {k: v for k, v in data.get("sources", {}).get(src, {}).items()
+              if k != "updated"}
+    if args.input_lut:
+        err = grade_mod.check_lut_file(args.input_lut)
+        if err:
+            log(err)
+            return 1
+        fields["input_lut"] = str(args.input_lut)
+    if args.profile:
+        fields["profile"] = args.profile
+    manifest.set_source_grade(src, fields)
+    emit({"source": src, **fields}, args.json,
+         f"{src}: profile {fields.get('profile', '—')}, input LUT "
+         f"{fields.get('input_lut', '—')} — re-run `shot grade --analyze` "
+         f"(stats are measured through the LUT)")
+    return 0
+
+
+def _grade_analyze(args) -> int:
+    """Color stats (batch, color.json mtime cache) — objective data for corrections."""
+    data = manifest.load()
+    files = args.files or ([Path(s["file"]) for s in data["selects"]]
+                           if args.selects else [])
+    if not files:
+        log("provide FILE... or --selects (all selects from the manifest)")
+        return 1
+    selects, sources = data["selects"], data.get("sources", {})
+
+    def one(f: Path) -> dict:
+        entry = montage_mod.resolve_use(str(f), selects)
+        src = sources.get(entry["source"] if entry else str(f))
+        return grade_mod.load_or_analyze_color(
+            f, grade_mod.normalize_filter(src), force=args.force)
+
+    results, rc = _batch(files, one)
+    lines = []
+    for r in results:
+        if "error" in r:
+            lines.append(f"{r['file']}: ERROR {r['error']}")
+            continue
+        st = r["stats"]
+        lines.append(
+            f"{r['file']}: luma {st['mean_luma']} "
+            f"(p5 {st['luma_p5']}, p95 {st['luma_p95']}), sat {st['mean_sat']}, "
+            f"cast {st['cast']} {st['cast_strength']}, "
+            f"clip {st['clip_high_pct']}%↑ {st['clip_low_pct']}%↓"
+            + (" [through input LUT]" if r.get("normalize") else ""))
+    emit({"results": results}, args.json, "\n".join(lines))
+    return rc
+
+
+def _grade_preview(args) -> int:
+    """Before/after grid PNG of the exact chains the render would bake."""
+    data = manifest.load()
+    selects, sources = data["selects"], data.get("sources")
+    cut_grade = manifest.get_cut(data, args.cut).get("grade")
+    files = args.files
+    if not files:
+        seq = manifest.get_cut(data, args.cut).get("sequence", [])
+        files = ([Path(e["use"]) for e in seq] if seq else
+                 [Path(s["file"]) for s in selects if not s.get("reject")])
+    if not files:
+        log("nothing to preview: no files given, no sequence, no selects")
+        return 1
+    missing = [str(f) for f in files if not f.exists()]
+    if missing:
+        for m in missing:
+            log(f"missing file: {m}")
+        return 1
+    clips = [(Path(f), grade_mod.chain_for_use(str(f), selects, cut_grade, sources))
+             for f in files]
+    out = args.out or paths.GRADE_PREVIEW / f"{args.cut}.png"
+    grade_mod.render_preview(clips, out, frames=args.frames)
+    graded = sum(1 for _, c in clips if c)
+    emit({"out": str(out), "clips": len(clips), "graded": graded}, args.json,
+         f"{out} ({len(clips)} clips, {graded} graded) — view it with Read")
+    return 0
+
+
+def cmd_grade(args) -> int:
+    """Color grading (non-destructive, baked at montage render): --analyze /
+    FILE... + correction flags / --look, --look-lut, --clear-look /
+    --source (normalize layer) / --list-looks / --preview / no args: state."""
+    if args.list_looks:
+        cat = grade_mod.looks_catalog()
+        lines = ["built-in looks:"]
+        lines += [f"  {name}: {expr}" for name, expr in cat["looks"].items()]
+        if cat["luts"]:
+            lines += ["user LUTs (luts/):"] + [f"  {p}" for p in cat["luts"]]
+        emit(cat, args.json, "\n".join(lines))
+        return 0
+    if args.source:
+        return _grade_source(args)
+    if args.look or args.look_lut or args.clear_look:
+        return _grade_look(args)
+    if args.analyze:
+        return _grade_analyze(args)
+    if args.preview:
+        return _grade_preview(args)
+    if args.files:
+        if any(getattr(args, k) is not None for k in grade_mod.RANGES) or args.clear:
+            return _grade_correct(args)
+        log("FILE without action: add correction flags (--exposure/--temperature/"
+            "--saturation/--contrast), --clear, --analyze or --preview")
+        return 1
+
+    # no arguments: grade state of the cut
+    data = manifest.load()
+    cut = manifest.get_cut(data, args.cut)
+    cut_grade = cut.get("grade")
+    corrections = [{"file": s["file"], "grade": s["grade"],
+                    "filter": grade_mod.correction_filter(s["grade"])}
+                   for s in data["selects"] if s.get("grade")]
+    sources = data.get("sources", {})
+    analyzed = sum(1 for s in data["selects"]
+                   if (paths.video_dir(Path(s["file"]).stem) / "color.json").exists())
+    rstate = montage_mod.render_state(cut, data)
+    payload = {"cut": args.cut, "look": cut_grade, "corrections": corrections,
+               "sources": sources,
+               "analyzed": analyzed, "selects": len(data["selects"]),
+               "render": rstate}
+    lines = [f"Look ({args.cut}): "
+             + ((cut_grade.get("look") or cut_grade.get("lut"))
+                if cut_grade else "— (shot grade --look NAME | --look-lut CUBE)")]
+    lines.append(f"Corrections: {len(corrections)} selects"
+                 + ("" if corrections else " (shot grade FILE --exposure ...)"))
+    lines += [f"  {c['file']}: {c['filter']}" for c in corrections]
+    if sources:
+        lines.append("Sources (normalize):")
+        lines += [f"  {p}: {v.get('profile', '?')} "
+                  f"({v.get('input_lut', 'no LUT')})" for p, v in sources.items()]
+    lines.append(f"Analysis: {analyzed}/{len(data['selects'])} selects have "
+                 f"color stats (shot grade --analyze --selects)")
+    reason = f" ({rstate['reason']})" if rstate.get("reason") else ""
+    lines.append(f"Render: {rstate['state']}{reason}")
     emit(payload, args.json, "\n".join(lines))
     return 0
 
@@ -1246,6 +1498,49 @@ def build_parser() -> argparse.ArgumentParser:
                     help="output file (default: output/cuts/<cut>-final.mp4); "
                          "NOTE: a mux with custom --out ALSO records music.applied "
                          "in the manifest (unlike publish --out)")
+
+    sp = add("grade", "color grading: color stats, per-select corrections, the cut's "
+                      "look — non-destructive, baked at montage render", cmd_grade)
+    sp.add_argument("files", nargs="*", type=Path, default=[],
+                    help="selects/variants for corrections, --analyze or --preview")
+    sp.add_argument("--analyze", action="store_true",
+                    help="color stats (luma, saturation, cast, clipping); batch, "
+                         "color.json mtime cache")
+    sp.add_argument("--selects", action="store_true",
+                    help="with --analyze: all selects from the manifest")
+    sp.add_argument("--force", action="store_true", help="ignore the color.json cache")
+    sp.add_argument("--exposure", type=float, metavar="EV",
+                    help="exposure correction in EV stops (-2..2; 0 = neutral, removes the key)")
+    sp.add_argument("--temperature", type=float, metavar="K",
+                    help="white balance in Kelvin (3000..10000; 6500 = neutral)")
+    sp.add_argument("--saturation", type=float, metavar="X",
+                    help="saturation multiplier (0..2; 1 = neutral)")
+    sp.add_argument("--contrast", type=float, metavar="X",
+                    help="contrast multiplier (0.5..1.5; 1 = neutral)")
+    sp.add_argument("--clear", action="store_true",
+                    help="remove the files' corrections (with --source: remove that entry)")
+    sp.add_argument("--look", metavar="NAME",
+                    help="set the cut's look preset (--list-looks shows them)")
+    sp.add_argument("--look-lut", type=Path, metavar="CUBE",
+                    help="set a user .cube (luts/) as the cut's look")
+    sp.add_argument("--clear-look", action="store_true", help="remove the cut's look")
+    sp.add_argument("--list-looks", action="store_true",
+                    help="built-in looks + luts/*.cube found")
+    sp.add_argument("--source", type=Path, metavar="VIDEO",
+                    help="set the SOURCE's normalize layer (log footage) with "
+                         "--input-lut/--profile; decisions live in the manifest")
+    sp.add_argument("--input-lut", type=Path, metavar="CUBE",
+                    help="log -> Rec.709 conversion LUT for --source (e.g. DJI D-Log)")
+    sp.add_argument("--profile", metavar="NAME",
+                    help="label of the source's color profile (e.g. d-log)")
+    sp.add_argument("--preview", action="store_true",
+                    help="before/after frame grid -> output/grade-preview/<cut>.png "
+                         "(FILE... or the cut's sequence; inspect via Read)")
+    sp.add_argument("--frames", type=int, default=3, metavar="N",
+                    help="preview frames per clip (default: 3)")
+    sp.add_argument("--out", type=Path, help="preview output file")
+    sp.add_argument("--cut", default="main", metavar="NAME",
+                    help="cut for --look/--preview/state (default: main)")
 
     sp = add("publish", "YT publishing assets: thumbnail (frame + text), title and description from template",
              cmd_publish)

@@ -42,9 +42,9 @@ def build_status(data: dict | None = None) -> dict:
         cuts[name] = {"sequence_len": len(cseq), "sequence_s": cseq_s,
                       "target_s": cut.get("target_s"),
                       "notes": cut.get("notes"),
-                      "render": montage.render_state(cut),
+                      "render": montage.render_state(cut, data),
                       "music": {"tracks": len(cut.get("music", {}).get("tracks", [])),
-                                "applied": montage.music_state(cut)}}
+                                "applied": montage.music_state(cut, data)}}
     return {
         "input_dir": str(input_dir),
         "inputs": inputs,

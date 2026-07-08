@@ -10,6 +10,7 @@ manifest writer is ever imported here.
 
 import datetime
 import email.utils
+import hashlib
 import json
 import os
 import sys
@@ -20,7 +21,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib import resources
 from pathlib import Path
 
-from . import config, ffmpeg, manifest, paths, sequence, status
+from . import config, ffmpeg, grade, manifest, paths, sequence, status
 
 THUMB_WIDTH = 480
 CHUNK = 1024 * 1024
@@ -93,6 +94,14 @@ def media_url(path_str: str) -> str | None:
 
 # ------------------------------------------------------------- API payload
 
+def _graded_chain(entry: dict, data: dict) -> str | None:
+    """The select's grade chain under main's look (what a render would bake) —
+    None when nothing grades this clip."""
+    cut_grade = manifest.get_cut(data, "main").get("grade")
+    return grade.chain_for_use(entry["file"], data["selects"],
+                               cut_grade, data.get("sources"))
+
+
 def build_ui_payload() -> dict:
     """`shot status` payload + URLs, exists-flags and per-cut sequence rows."""
     data = manifest.load()
@@ -103,6 +112,8 @@ def build_ui_payload() -> dict:
         rng = s.get("range")
         s.update(url=media_url(s["file"]), exists=p.is_file(),
                  thumb=f"/thumb/{urllib.parse.quote(p.stem)}.jpg",
+                 thumb_graded=(f"/thumb/graded/{urllib.parse.quote(p.stem)}.jpg"
+                               if _graded_chain(s, data) else None),
                  duration_s=round(rng[1] - rng[0], 2) if rng else None,
                  source_url=media_url(s["source"]), source_exists=src.is_file(),
                  source_stem=src.stem,
@@ -125,6 +136,7 @@ def build_ui_payload() -> dict:
         out = (cut.get("render") or {}).get("out")
         applied = c["music"]["applied"]
         c.update(sequence=rows,
+                 grade=cut.get("grade"),
                  render_url=media_url(out) if out else None,
                  render_exists=bool(out) and Path(out).is_file(),
                  final_url=media_url(applied["out"]) if applied.get("out") else None)
@@ -134,9 +146,11 @@ def build_ui_payload() -> dict:
 
 # -------------------------------------------------------------- thumbnails
 
-def _poster(src: Path, at: float, thumb: Path) -> Path | None:
+def _poster(src: Path, at: float, thumb: Path,
+            vf: str | None = None) -> Path | None:
     """Cached-or-generated poster frame of `src` at `at` seconds, None if the
-    source file is missing. Atomic tmp+replace — concurrent racers are safe."""
+    source file is missing. Atomic tmp+replace — concurrent racers are safe.
+    `vf` = grade chain for graded posters (the cache NAME embeds its hash)."""
     if not src.is_file():
         return None
     if thumb.is_file() and thumb.stat().st_mtime >= src.stat().st_mtime:
@@ -144,7 +158,7 @@ def _poster(src: Path, at: float, thumb: Path) -> Path | None:
     thumb.parent.mkdir(parents=True, exist_ok=True)
     tmp = thumb.with_name(f"{thumb.stem}.{threading.get_ident()}.part.jpg")
     with _THUMB_SEM:
-        ffmpeg.extract_frame(src, at, tmp, width=THUMB_WIDTH)
+        ffmpeg.extract_frame(src, at, tmp, width=THUMB_WIDTH, vf=vf)
     os.replace(tmp, thumb)
     return thumb
 
@@ -155,6 +169,27 @@ def thumb_for(entry: dict) -> Path | None:
     rng = entry.get("range") or (0, 0)
     return _poster(src, max((rng[1] - rng[0]) / 2, 0.0),
                    paths.UI_CACHE / "thumbs" / f"{src.stem}.jpg")
+
+
+def graded_thumb(stem: str) -> Path | None:
+    """Poster of a select WITH its grade chain applied (before/after view).
+
+    The chain's hash is part of the cache file name, so a grade change points
+    at a fresh name — stale hashes linger harmlessly in the deletable ui-cache."""
+    data = manifest.load()
+    entry = next((s for s in data["selects"]
+                  if Path(s["file"]).stem == stem), None)
+    if entry is None:
+        return None
+    chain = _graded_chain(entry, data)
+    if not chain:
+        return None
+    src = Path(entry["file"])
+    rng = entry.get("range") or (0, 0)
+    h = hashlib.sha1(chain.encode()).hexdigest()[:8]
+    return _poster(src, max((rng[1] - rng[0]) / 2, 0.0),
+                   paths.UI_CACHE / "thumbs" / "graded" / f"{stem}.{h}.jpg",
+                   vf=chain)
 
 
 def input_thumb(stem: str) -> Path | None:
@@ -223,6 +258,10 @@ class Handler(BaseHTTPRequestHandler):
             stem = urllib.parse.unquote(
                 path.removeprefix("/thumb/input/")).removesuffix(".jpg")
             self._file(input_thumb(stem), head)
+        elif path.startswith("/thumb/graded/"):
+            stem = urllib.parse.unquote(
+                path.removeprefix("/thumb/graded/")).removesuffix(".jpg")
+            self._file(graded_thumb(stem), head)
         elif path.startswith("/thumb/"):
             self._thumb(path.removeprefix("/thumb/"), head)
         elif path.startswith("/media/output/"):

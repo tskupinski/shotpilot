@@ -42,8 +42,10 @@ def _lock():
 # Schema version written on every save; older manifests are migrated by load()
 # on the fly (persisted at the next save). v2: "montage" -> cuts["main"];
 # v3: main's render in output/cuts/main.mp4 instead of historical loose paths;
-# v4: Polish tags.role values -> English (oddech/przejsciowka).
-SCHEMA_VERSION = 4
+# v4: Polish tags.role values -> English (oddech/przejsciowka);
+# v5: grading (select.grade, cuts.<name>.grade, top-level "sources",
+# render.grade snapshot) — all new fields optional, so no migration needed.
+SCHEMA_VERSION = 5
 
 # v4: translation of the closed role vocabulary (montage.ROLES) to English
 _V4_ROLES = {"oddech": "breather", "przejsciowka": "transition"}
@@ -90,6 +92,10 @@ def load() -> dict:
         _migrate_v3(data)
     if data.get("schema_version", 0) < 4:
         _migrate_v4(data)
+    # the in-memory view is always current-version shape (migrations above),
+    # so stamp it here too — `shot validate` checks THIS view, and an old
+    # on-disk version must not fail the const before the next save persists it
+    data["schema_version"] = SCHEMA_VERSION
     return data
 
 
@@ -150,6 +156,38 @@ def set_speed_variants(file: str | Path, variants: dict) -> bool:
                 save(data)
                 return True
         return False
+
+
+def set_select_grade(file: str | Path, grade: dict | None) -> bool:
+    """Replaces the select's color corrections; None/{} removes the field.
+    False when the file is not in the manifest. Values pre-validated by the
+    CLI (grade.validate_correction); the schema enforces the same ranges."""
+    with _lock():
+        data = load()
+        for s in data["selects"]:
+            if s["file"] == str(file):
+                if grade:
+                    s["grade"] = grade
+                else:
+                    s.pop("grade", None)
+                save(data)
+                return True
+        return False
+
+
+def set_source_grade(source: str, fields: dict | None) -> None:
+    """The source's grading facts (top-level "sources": profile, input_lut) —
+    the normalize layer for log footage; None removes the entry."""
+    with _lock():
+        data = load()
+        sources = data.setdefault("sources", {})
+        if fields:
+            sources[source] = {**fields, "updated": _now()}
+        else:
+            sources.pop(source, None)
+        if not sources:
+            data.pop("sources", None)
+        save(data)
 
 
 def remove(file: str | Path) -> bool:
@@ -230,6 +268,21 @@ def set_cut_notes(note: str, cut: str = "main", append: bool = False) -> None:
             m["notes"] = m["notes"] + "; " + note
         else:
             m["notes"] = note
+        m["updated"] = _now()
+        save(data)
+
+
+def set_cut_grade(grade: dict | None, cut: str = "main") -> None:
+    """The cut's creative look ({"look": preset} or {"lut": path});
+    None removes it. Freshness: montage.render_state compares the render's
+    grade snapshot with the current manifest — no timestamps to maintain here."""
+    with _lock():
+        data = load()
+        m = _cut(data, cut)
+        if grade:
+            m["grade"] = {**grade, "updated": _now()}
+        else:
+            m.pop("grade", None)
         m["updated"] = _now()
         save(data)
 

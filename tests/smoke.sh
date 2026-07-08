@@ -36,7 +36,7 @@ assert_json() {  # assert_json '<expr on d>' <<< json
 
 $PY "$ROOT/tests/make_test_video.py" "$SYN" >&2
 
-echo "[1/17] scan (+ contact sheet in a single pass)" >&2
+echo "[1/18] scan (+ contact sheet in a single pass)" >&2
 $SHOT scan "$SYN" --force --json 2>/dev/null \
     | assert_json "d['results'][0]['stats']['n_segments'] == 3"
 [ -f output/test_synthetic/contact.png ] || fail "scan did not generate contact.png"
@@ -47,20 +47,20 @@ ffmpeg -nostdin -y -v error -f lavfi -i "testsrc2=size=640x360:rate=30:duration=
 $SHOT scan "$TINY" --json 2>/dev/null \
     | assert_json "d['results'][0]['stats']['n_segments'] == 0"
 
-echo "[2/17] jitter" >&2
+echo "[2/18] jitter" >&2
 $SHOT jitter "$SYN" --from 9 --to 11 --json 2>/dev/null \
     | assert_json "d['verdict'] == 'jitter'"
 $SHOT jitter "$SYN" --from 14 --to 16 --json 2>/dev/null \
     | assert_json "d['verdict'] == 'smooth-maneuver'"
 
-echo "[3/17] sheet (cache) + frames" >&2
+echo "[3/18] sheet (cache) + frames" >&2
 $SHOT sheet "$SYN" --json 2>sheet.err \
     | assert_json "d['results'][0]['sheet'].endswith('contact.png')"
 grep -q "cache" sheet.err || fail "sheet did not use the cache after scan"
 $SHOT frames "$SYN" 1 15 --json 2>/dev/null \
     | assert_json "len(d['frames']) == 2"
 
-echo "[4/17] select (single + --plan resume)" >&2
+echo "[4/18] select (single + --plan resume)" >&2
 $SHOT select "$SYN" 13 18 --label smoke --stars 1 --note "smoke test" --json 2>/dev/null \
     | assert_json "d['range'] == [13.0, 18.0] and d['stars'] == 1"
 [ -f "$SEL" ] || fail "select file missing"
@@ -72,7 +72,7 @@ $SHOT select --plan plan.jsonl --json 2>/dev/null \
 [ -f "$SEL2" ] || fail "select --plan did not cut the missing select"
 $SHOT select --plan plan.jsonl --label x 2>/dev/null && fail "select --plan accepted --label" || true
 
-echo "[5/17] pace (source motion reuse + profile) + speed + guard" >&2
+echo "[5/18] pace (source motion reuse + profile) + speed + guard" >&2
 $SHOT pace "$SEL" --profile --json 2>pace.err \
     | assert_json "d['results'][0]['pace']['total_pct_s'] > 0 and d['results'][0]['profile']['windows'] and 't0_src' in d['results'][0]['profile']['windows'][0]"
 grep -q "motion.csv" pace.err || fail "pace did not reuse the source's motion.csv via the manifest"
@@ -81,11 +81,11 @@ $SHOT speed "$SEL" 2 --json 2>/dev/null \
 $SHOT speed "$SELX2" 2 2>/dev/null \
     && fail "speed did not refuse on an _x2 variant" || true
 
-echo "[6/17] status" >&2
+echo "[6/18] status" >&2
 $SHOT status --json 2>/dev/null \
     | assert_json "any(s['label'] == 'smoke' and s['speed_variants'] for s in d['selects'])"
 
-echo "[7/17] tag" >&2
+echo "[7/18] tag" >&2
 $SHOT tag "$SEL" --scene synthetic --shot panorama --light midday --json 2>/dev/null \
     | assert_json "d['results'][0]['tags'] == {'scene': 'synthetic', 'shot': 'panorama', 'light': 'midday'}"
 $SHOT tag "$SEL" --scene "Bad Tags" 2>/dev/null && fail "tag accepted non-kebab-case" || true
@@ -102,7 +102,7 @@ $SHOT tag "$SEL2" --reject --unreject 2>/dev/null && fail "tag accepted --reject
 $SHOT tag "$SEL2" --unreject --json 2>/dev/null \
     | assert_json "d['results'][0]['reject'] is False"
 
-echo "[8/17] sequence + lint + target" >&2
+echo "[8/18] sequence + lint + target" >&2
 $SHOT sequence "$SEL2" "$SELX2" --target 30 --json 2>/dev/null \
     | assert_json "abs(d['total_s'] - 7.5) < 0.5 and d['target_s'] == 30 and any(w['type'] == 'adjacent_same_scene' for w in d['warnings']) and any(w['type'] == 'duration_off_target' for w in d['warnings'])"
 $SHOT sequence --target 8 --json 2>/dev/null \
@@ -124,7 +124,7 @@ $SHOT sequence --json 2>/dev/null \
     | assert_json "any(w['type']=='rejected_clip' for w in d['warnings']) and any(r['file'].endswith('smoke2.mp4') for r in d['rejected'])"
 $SHOT tag "$SEL2" --unreject >/dev/null 2>&1
 
-echo "[9/17] montage (draft --xfade 0 + crossfade + --smooth + skip/--force + --draft)" >&2
+echo "[9/18] montage (draft --xfade 0 + crossfade + --smooth + skip/--force + --draft)" >&2
 $SHOT montage --out "$MONT" --xfade 0 --json 2>/dev/null \
     | assert_json "abs(d['duration'] - 7.5) < 0.5 and d['clips'] == 2 and d['xfade'] == 0 and d['smooth'] is False"
 [ -f "$MONT" ] || fail "montage file missing"
@@ -185,7 +185,7 @@ $SHOT smooth smoke_30.mp4 --fps 60/1 --json 2>/dev/null \
 $SHOT status --json 2>/dev/null \
     | assert_json "d['cuts']['main']['render']['state'] == 'fresh'"
 
-echo "[10/17] locate (time->clip, reverse lookup, timeline)" >&2
+echo "[10/18] locate (time->clip, reverse lookup, timeline)" >&2
 $SHOT locate --json 2>/dev/null \
     | assert_json "len(d['timeline']) == 2 and abs(d['film_s'] - 6.5) < 0.6 and d['render']['state'] == 'fresh'"
 $SHOT locate 0:03 smoke2 --json 2>/dev/null \
@@ -200,7 +200,7 @@ $SHOT locate 0:03 --files "$MONT" --json 2>/dev/null \
     | assert_json "d['results'][0]['clip']['label'] == 'smoke_montage'"
 $SHOT locate 0:01 --files no/such/file.mp4 2>/dev/null && fail "locate --files accepted a nonexistent file" || true
 
-echo "[11/17] music (probe + mux + loop + staleness)" >&2
+echo "[11/18] music (probe + mux + loop + staleness)" >&2
 ffmpeg -nostdin -y -v error -f lavfi -i "sine=frequency=440:duration=12" "$MUSIC"
 $SHOT music --probe "$MUSIC" --json 2>/dev/null \
     | assert_json "abs(d['results'][0]['duration_s'] - 12) < 0.2 and d['results'][0]['energy'] and d['results'][0]['integrated_lufs'] is not None"
@@ -222,7 +222,7 @@ ffmpeg -nostdin -y -v error -f lavfi -i "sine=frequency=330:duration=3" "$MUSIC_
 $SHOT music "$MUSIC_SHORT" --loop --out "$FINAL" --json 2>/dev/null \
     | assert_json "d['looped'] and d['gap_s'] < 0.6 and abs(d['audio_s'] - d['video_s']) < 0.6"
 
-echo "[12/17] ui (read-only server: api joins, range, thumb, guards)" >&2
+echo "[12/18] ui (read-only server: api joins, range, thumb, guards)" >&2
 # pure helpers: Range parsing + path traversal guard
 $PY -c "
 from pathlib import Path
@@ -257,7 +257,87 @@ curl -s -o thumb.jpg "$UI/thumb/test_synthetic_smoke.jpg"
 kill $UI_PID
 UI_PID=""
 
-echo "[13/17] trim (re-cut from source + variant refresh + staleness + cut guard)" >&2
+echo "[13/18] grade (stats + corrections + look + freshness + effect + LUT + preview)" >&2
+# color stats: sane values, all keys, mtime cache on the second run
+$SHOT grade --analyze "$SEL" --json 2>/dev/null \
+    | assert_json "0 < d['results'][0]['stats']['mean_luma'] < 1 and d['results'][0]['frames_sampled'] >= 3 and all(k in d['results'][0]['stats'] for k in ('mean_sat', 'cast', 'cast_strength', 'clip_high_pct', 'clip_low_pct', 'luma_p5', 'luma_p95'))"
+[ -f output/test_synthetic_smoke/color.json ] || fail "color.json cache missing"
+$SHOT grade --analyze "$SEL" --json 2>grade.err >/dev/null
+grep -q "cache" grade.err || fail "grade --analyze did not use the color.json cache"
+# corrections: set (merge), range guard, neutral values remove keys; a _x* variant resolves to its select
+$SHOT grade "$SEL2" --saturation 1.2 --json 2>/dev/null \
+    | assert_json "d['results'][0]['grade'] == {'saturation': 1.2}"
+$SHOT grade "$SEL2" --saturation 9 2>/dev/null && fail "grade accepted saturation out of range" || true
+$SHOT grade "$SEL2" --exposure 0.3 --json 2>/dev/null \
+    | assert_json "d['results'][0]['grade'] == {'saturation': 1.2, 'exposure': 0.3}"
+$SHOT grade "$SEL2" --saturation 1 --exposure 0 --json 2>/dev/null \
+    | assert_json "d['results'][0]['grade'] is None"
+$SHOT grade "$SELX2" --contrast 1.1 --json 2>/dev/null \
+    | assert_json "d['results'][0]['file'].endswith('smoke.mp4')"
+$SHOT grade "$SEL" --clear --json >/dev/null 2>&1
+# look: catalog + set + guard; grade change -> the fresh render goes stale
+$SHOT grade --list-looks --json 2>/dev/null \
+    | assert_json "'golden' in d['looks']"
+$SHOT grade --look no-such-look 2>/dev/null && fail "grade accepted an unknown look" || true
+$SHOT grade --look golden --json 2>/dev/null \
+    | assert_json "d['grade'] == {'look': 'golden'}"
+$SHOT status --json 2>/dev/null \
+    | assert_json "d['cuts']['main']['render']['state'] == 'stale' and 'grade' in d['cuts']['main']['render']['reason']"
+# graded crossfade render: snapshot in the record, fresh again, repeat run skips
+$SHOT montage --out "$MONT" --json 2>/dev/null \
+    | assert_json "d['graded'] is True and 'skipped' not in d"
+$PY -c "from pipeline import manifest; r = manifest.get_cut()['render']; assert r.get('grade') and r['grade']['look'] == 'golden', r.get('grade')" \
+    || fail "render record has no grade snapshot"
+$SHOT montage --out "$MONT" --json 2>/dev/null \
+    | assert_json "d.get('skipped') is True"
+# --xfade 0 + grade: stream copy stays ungraded, loud warning, honestly grade-stale
+$SHOT montage --out "$MONT" --xfade 0 --force --json 2>grade_xf0.err \
+    | assert_json "d['graded'] is False"
+grep -q "NOT applied" grade_xf0.err || fail "no warning about grades with --xfade 0"
+$SHOT status --json 2>/dev/null \
+    | assert_json "d['cuts']['main']['render']['state'] == 'stale'"
+# effect end to end: saturation 0 on both selects -> the rendered film is grayscale
+$SHOT grade --clear-look >/dev/null 2>&1
+$SHOT grade "$SEL" "$SEL2" --saturation 0 --json 2>/dev/null \
+    | assert_json "all(r['grade'] == {'saturation': 0.0} for r in d['results'])"
+$SHOT montage --out "$MONT" --json 2>/dev/null | assert_json "d['graded'] is True"
+$PY -c "
+import cv2
+cap = cv2.VideoCapture('$MONT'); cap.set(cv2.CAP_PROP_POS_FRAMES, 30)
+ok, fr = cap.read(); assert ok
+sat = cv2.cvtColor(fr, cv2.COLOR_BGR2HSV)[..., 1].mean() / 255
+assert sat < 0.05, sat" || fail "saturation 0 grade did not desaturate the render"
+# user LUT (lut3d + path escaping): a 2x2x2 cube zeroing blue
+mkdir -p luts
+printf 'LUT_3D_SIZE 2\n0 0 0\n1 0 0\n0 1 0\n1 1 0\n0 0 0\n1 0 0\n0 1 0\n1 1 0\n' > luts/zero-blue.cube
+$SHOT grade "$SEL" "$SEL2" --clear --json >/dev/null 2>&1
+$SHOT grade --look-lut no/such.cube 2>/dev/null && fail "grade accepted a missing LUT file" || true
+$SHOT grade --look-lut luts/zero-blue.cube --json 2>/dev/null \
+    | assert_json "d['grade'] == {'lut': 'luts/zero-blue.cube'}"
+$SHOT montage --out "$MONT" --json >/dev/null 2>&1
+$PY -c "
+import cv2
+cap = cv2.VideoCapture('$MONT'); cap.set(cv2.CAP_PROP_POS_FRAMES, 30)
+ok, fr = cap.read(); assert ok
+blue = float(fr[..., 0].mean())
+assert blue < 10, blue" || fail "zero-blue LUT did not reach the render"
+# normalize layer per source: stats re-measured THROUGH the input LUT (cache invalidated)
+$SHOT grade --source "$SYN" --input-lut luts/zero-blue.cube --profile d-log --json 2>/dev/null \
+    | assert_json "d['profile'] == 'd-log'"
+$SHOT grade --analyze "$SEL" --json 2>/dev/null \
+    | assert_json "d['results'][0]['normalize'] is not None and d['results'][0]['stats']['rgb_means'][2] == 0"
+$SHOT grade --source "$SYN" --clear >/dev/null 2>&1
+# before/after preview grid for the agent
+$SHOT grade --preview --json 2>/dev/null \
+    | assert_json "d['clips'] == 2 and d['graded'] == 2"
+[ -f output/grade-preview/main.png ] || fail "grade preview PNG missing"
+# back to an ungraded fresh render for the sections below
+$SHOT grade --clear-look >/dev/null 2>&1
+$SHOT montage --out "$MONT" >/dev/null 2>&1 || fail "ungraded re-render after grade tests failed"
+$SHOT grade --json 2>/dev/null \
+    | assert_json "d['look'] is None and d['corrections'] == [] and d['render']['state'] == 'fresh'"
+
+echo "[14/18] trim (re-cut from source + variant refresh + staleness + cut guard)" >&2
 # the select also plays in a second cut -> trim must warn that it changes all cuts
 $SHOT sequence --cut smoke-b "$SEL" >/dev/null 2>&1
 $SHOT trim "$SEL" 14 17 --note "smoke trim" --json 2>trim.err \
@@ -273,7 +353,7 @@ $PY -c "from pipeline import manifest; manifest.remove('$SEL'); manifest.remove(
 $PY -c "from pipeline import manifest; assert manifest.get_cut()['sequence'] == []" \
     || fail "remove did not clear the montage sequence"
 
-echo "[14/17] config: custom input folder (isolated tmp)" >&2
+echo "[15/18] config: custom input folder (isolated tmp)" >&2
 TMP=$(mktemp -d)
 mkdir -p "$TMP/output" "$TMP/sdcard"
 touch "$TMP/sdcard/card.mp4"
@@ -297,7 +377,7 @@ run_tmp config --json \
     || fail "real env did not win over .env"
 rm -rf "$TMP"
 
-echo "[15/17] archive + restore (isolated tmp)" >&2
+echo "[16/18] archive + restore (isolated tmp)" >&2
 TMP=$(mktemp -d)
 mkdir -p "$TMP/output" "$TMP/input"
 echo '{"selects": []}' > "$TMP/output/project.json"
@@ -314,7 +394,7 @@ ARCH=$(ls "$TMP/archive")
 [ ! -d "$TMP/archive/$ARCH" ] || fail "empty archive was not cleaned up"
 rm -rf "$TMP"
 
-echo "[16/17] publish (thumbnail + description, isolated tmp)" >&2
+echo "[17/18] publish (thumbnail + description, isolated tmp)" >&2
 TMP=$(mktemp -d)
 mkdir -p "$TMP/output"
 ffmpeg -nostdin -y -v error -f lavfi -i "testsrc2=size=1920x1080:rate=24:duration=2" "$TMP/src.mp4"
@@ -346,7 +426,7 @@ run_pub publish --frame src.mp4 --at 99 --text "X" && fail "publish accepted a f
     && fail "publish assembled a description without a template" || true
 rm -rf "$TMP"
 
-echo "[17/17] validate (schema contract + negative test)" >&2
+echo "[18/18] validate (schema contract + negative test)" >&2
 # every mutator has already passed save-side validation by now (selects, tags,
 # sequence, render, music, trim, remove) — this checks the files on disk
 $SHOT validate --json 2>/dev/null \

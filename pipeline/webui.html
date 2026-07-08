@@ -177,6 +177,9 @@ tr.gone td { color: var(--faint); }
 #panel .ribbon { margin-top: 6px; border-radius: 2px; }
 #panel .row2 { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
 #panel .hint { color: var(--faint); font-size: 12px; }
+#panel .ba { margin: 0; flex: 1; min-width: 0; }
+#panel .ba img { width: 100%; border-radius: 6px; display: block; }
+#panel .ba figcaption { color: var(--faint); font-size: 12px; margin-top: 2px; text-align: center; }
 #srcwrap { display: none; }
 .navarrow {
   position: fixed; top: 50%; transform: translateY(-50%); z-index: 11;
@@ -366,6 +369,8 @@ function viewCuts(main) {
         ? h("span", { class: "state " + c.music.applied.state, title: c.music.applied.reason || "" },
             `music: ${c.music.tracks} track${c.music.tracks === 1 ? "" : "s"}, applied ${c.music.applied.state}`)
         : null,
+      c.grade ? h("span", { class: "chip var", title: "applied at montage render" },
+                  "grade: " + (c.grade.look || c.grade.lut)) : null,
       h("div", { class: "play" },
         c.render_exists && c.render_url
           ? h("button", { onclick: () => openVideo(`${name} — render`, c.render_url) }, "▸ render") : null,
@@ -610,6 +615,15 @@ function openPreview(sel, use) {
   }
   row.append(noteBtn(stem(sel.file), "✎ add to note"));
   panel.append(row);
+  if (sel.thumb_graded) {
+    panel.append(h("div", { class: "row2" },
+      h("figure", { class: "ba" }, h("img", { src: sel.thumb, loading: "lazy", alt: "original" }),
+        h("figcaption", {}, "original")),
+      h("figure", { class: "ba" }, h("img", { src: sel.thumb_graded, loading: "lazy", alt: "graded" }),
+        h("figcaption", {}, "graded"))));
+    panel.append(h("div", { class: "row2 hint" },
+      "video plays ungraded — the grade is applied at montage render"));
+  }
   if (sel.notes) panel.append(h("div", { class: "row2 hint" }, sel.notes));
   const lower = sel.source.toLowerCase();
   if (/\.(mts|mkv|avi)$/.test(lower))

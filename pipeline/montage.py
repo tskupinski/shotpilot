@@ -160,7 +160,8 @@ def clip_starts(durations: list[float], xfade: float) -> list[float]:
 
 def concat_xfade(files: list[Path], out: Path, duration: float,
                  smooth: bool = False, fields: list[dict] | None = None,
-                 encode: list[str] | None = None) -> Path:
+                 encode: list[str] | None = None,
+                 vf: list[str | None] | None = None) -> Path:
     """Splice with crossfade transitions (xfade chain, re-encode of the whole).
 
     A re-encode happens anyway, so we normalize every input to a common fps
@@ -178,8 +179,17 @@ def concat_xfade(files: list[Path], out: Path, duration: float,
 
     `fields` as in `target_fps`; `encode` overrides the output encoder args
     (default MONTAGE_X264_ARGS; `draft_args()` for preview renders).
+
+    `vf` = per-clip grade chains (grade.chain_for_use, index-aligned with
+    `files`; None entries render ungraded). Applied AFTER the fps/timebase
+    normalization and downstream of the smooth-cache clips, so grade changes
+    never invalidate output/smooth-cache/.
     """
     if len(files) < 2:
+        chain = vf[0] if vf and vf[0] else None
+        if chain:  # a single graded clip: concat() is stream copy, so encode
+            return ffmpeg.run_to(["-i", files[0], "-vf", chain, "-an",
+                                  *(encode or MONTAGE_X264_ARGS)], out)
         return concat(files, out)
     out.parent.mkdir(parents=True, exist_ok=True)
     fields = fields or [stream_fields(f) for f in files]
@@ -194,8 +204,12 @@ def concat_xfade(files: list[Path], out: Path, duration: float,
                   file=sys.stderr, flush=True)
             work[i] = smooth_clip(files[i], fps)
 
-    # unify fps + timebase of each input -> [n0], [n1], ... (no minterpolate)
-    parts = [f"[{i}:v]fps={fps},settb=AVTB[n{i}]" for i in range(len(work))]
+    # unify fps + timebase of each input -> [n0], [n1], ... (no minterpolate);
+    # each grade chain ends in format=yuv420p, so graded and ungraded pads
+    # enter xfade with a uniform pixel format
+    parts = [f"[{i}:v]fps={fps},settb=AVTB"
+             + (f",{vf[i]}" if vf and vf[i] else "") + f"[n{i}]"
+             for i in range(len(work))]
     starts = clip_starts(durs, duration)
     for i in range(1, len(work)):
         src = "[n0]" if i == 1 else f"[v{i - 1}]"
@@ -285,8 +299,10 @@ def build_timeline(montage: dict, selects: list[dict], xfade: float) -> list[dic
     return rows
 
 
-def render_state(montage: dict) -> dict:
-    """Whether the last render matches the sequence and the current clip files."""
+def render_state(montage: dict, data: dict | None = None) -> dict:
+    """Whether the last render matches the sequence, the current clip files
+    and the current grade decisions (`data` = a manifest already in the
+    caller's hand — saves a re-load)."""
     render = montage.get("render")
     if not render:
         return {"state": STATE_NONE}
@@ -300,13 +316,23 @@ def render_state(montage: dict) -> dict:
             return {"state": STATE_STALE, "reason": f"missing file: {f}"}
         if p.stat().st_mtime > rendered_at:
             return {"state": STATE_STALE, "reason": f"clip changed after render: {f}"}
+    # grade freshness: what the render baked in (render.grade snapshot,
+    # None = ungraded) vs the manifest now; the snapshot embeds LUT mtimes,
+    # so editing a .cube also lands here
+    from . import grade, manifest  # local imports: no cycle at module level
+    if data is None:
+        data = manifest.load()
+    snapshot = grade.grade_snapshot(current, data.get("selects", []),
+                                    montage.get("grade"), data.get("sources"))
+    if snapshot != render.get("grade"):
+        return {"state": STATE_STALE, "reason": "grade changed after render"}
     state = {"state": STATE_FRESH}
     if render.get("draft"):
         state["draft"] = True  # fresh, but preview quality (--draft encode)
     return state
 
 
-def music_state(montage: dict) -> dict:
+def music_state(montage: dict, data: dict | None = None) -> dict:
     """Whether the applied music (the cut's music.applied) matches the last render."""
     applied = montage.get("music", {}).get("applied")
     if not applied:
@@ -314,7 +340,7 @@ def music_state(montage: dict) -> dict:
     render = montage.get("render")
     if not render:
         return {"state": STATE_STALE, "reason": "no montage render"}
-    if render_state(montage)["state"] != STATE_FRESH:
+    if render_state(montage, data)["state"] != STATE_FRESH:
         return {"state": STATE_STALE, "reason": "montage render is stale"}
     if applied.get("render_rendered_at") != render.get("rendered_at"):
         return {"state": STATE_STALE,

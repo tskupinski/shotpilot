@@ -7,7 +7,7 @@
   "required": ["schema_version", "selects"],
   "properties": {
     "schema_version": {
-      "const": 4,
+      "const": 5,
       "$comment": "Bump workflow: 1) _migrate_vN() + call in manifest.load(), 2) bump SCHEMA_VERSION in manifest.py, 3) update this const and the changed shapes here."
     },
     "selects": {"type": "array", "items": {"$ref": "#/$defs/select"}},
@@ -15,6 +15,19 @@
       "type": "object",
       "propertyNames": {"pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"},
       "additionalProperties": {"$ref": "#/$defs/cut"}
+    },
+    "sources": {
+      "$comment": "Per-source grading facts keyed by source path (shot grade --source): the normalize layer for log footage. A project decision (survives archive/restore), hence here and not in config.json.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "profile": {"type": "string"},
+          "input_lut": {"type": "string"},
+          "updated": {"type": "string"}
+        }
+      }
     },
     "publish": {"$ref": "#/$defs/publish"}
   },
@@ -46,7 +59,19 @@
         },
         "tags": {"anyOf": [{"$ref": "#/$defs/tags"}, {"type": "null"}]},
         "reject": {"type": "boolean"},
-        "range_history": {"type": "array", "items": {"$ref": "#/$defs/range"}}
+        "range_history": {"type": "array", "items": {"$ref": "#/$defs/range"}},
+        "grade": {"$ref": "#/$defs/correction"}
+      }
+    },
+    "correction": {
+      "$comment": "Per-select color corrections as deviations from neutral; ranges mirror grade.RANGES (the CLI clamps, the schema enforces). Criteria: docs/decision-rules.md (Grading).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "exposure": {"type": "number", "minimum": -2.0, "maximum": 2.0},
+        "temperature": {"type": "number", "minimum": 3000, "maximum": 10000},
+        "saturation": {"type": "number", "minimum": 0.0, "maximum": 2.0},
+        "contrast": {"type": "number", "minimum": 0.5, "maximum": 1.5}
       }
     },
     "tags": {
@@ -77,6 +102,18 @@
         "target_s": {"type": "number", "exclusiveMinimum": 0},
         "notes": {"type": "string"},
         "updated": {"type": "string"},
+        "grade": {
+          "$comment": "The cut's creative look: a built-in preset name (grade.LOOKS — filter strings are implementation, so the closed list lives in the CLI, not here) OR a user .cube path — never both.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["updated"],
+          "properties": {
+            "look": {"$ref": "#/$defs/kebab"},
+            "lut": {"type": "string"},
+            "updated": {"type": "string"}
+          },
+          "not": {"required": ["look", "lut"]}
+        },
         "render": {"$ref": "#/$defs/render"},
         "music": {"$ref": "#/$defs/music"}
       }
@@ -96,7 +133,23 @@
         "duration_s": {"type": "number"},
         "clip_durations_s": {"type": "array", "items": {"type": "number"}},
         "files": {"type": "array", "items": {"type": "string"}},
-        "rendered_at": {"type": "string"}
+        "rendered_at": {"type": "string"},
+        "grade": {
+          "$comment": "grade.grade_snapshot of what was ACTUALLY baked in (absent/null = ungraded render, e.g. --xfade 0 stream copy); montage.render_state compares it against the current manifest grade.",
+          "anyOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["clips", "look", "luts"],
+              "properties": {
+                "clips": {"type": "array", "items": {"type": ["string", "null"]}},
+                "look": {"type": ["string", "null"]},
+                "luts": {"type": "object", "additionalProperties": {"type": ["number", "null"]}}
+              }
+            }
+          ]
+        }
       }
     },
     "music": {

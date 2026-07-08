@@ -209,6 +209,43 @@ can run in the background while iterating on the order, and the final `shot mont
 only fills in the gaps; invalidation on mtime and a mismatched fps; reused across
 versions/cuts; deletable — it will be rebuilt on the next `--smooth`.
 
+## Grading (`shot grade`)
+
+Non-destructive: a grade is a manifest decision baked in at the montage render
+(which re-encodes anyway — crossfades), never into the select files. Three
+layers per clip: normalize (per source: log→Rec.709 input LUT) → correct
+(per select: exposure/temperature/saturation/contrast) → look (per cut:
+ONE preset or user .cube from `luts/`).
+
+- **The default is no grade.** Correct only what the analysis
+  (`shot grade --analyze`) flags; the montage should look like the footage,
+  not like a filter. Set a look only when the film gains a coherent mood from it.
+- **Correct vs leave alone** (thresholds on the `--analyze` stats):
+  - `mean_luma` outside 0.35–0.60 → exposure nudge, ≈ +0.3 EV per 0.07 of
+    luma deficit (in practice stay within ±1.0 EV);
+  - `cast_strength` > 0.03 → `--temperature` toward neutral: warm cast (R > B)
+    → above 6500 K, cool cast → below;
+  - `clip_high_pct` > 1% → lower the exposure; never "fix" blown highlights
+    with contrast;
+  - `luma_p95 − luma_p5` < 0.5 on non-log footage → mild contrast, ≤ 1.1.
+- **Matching neighbors is the real goal**, not absolute targets: clips inside
+  the same act should sit within ±0.08 `mean_luma` and ±0.02 `cast_strength`
+  of each other. Fix the outlier, not every clip.
+- **Look subtlety:** one look per film; stay in saturation ≤ ~1.15 /
+  contrast ≤ ~1.1 territory. Judge on the preview grid (`shot grade --preview`
+  → Read) AND ask the human after they watch a render — stills undersell how
+  a grade pumps in motion.
+- **Log footage (D-Log etc.):** washed-out stats (low `mean_sat`, small
+  `luma_p95 − luma_p5`) are the PROFILE, not a correction target. Assign the
+  conversion LUT first (`shot grade --source SRC --input-lut luts/X.cube
+  --profile d-log`), re-analyze (stats are measured through the LUT), and only
+  then correct. Never "fix" log with eq/contrast.
+- **Freshness:** any grade change makes the cut's render stale (`shot status`
+  shows the reason); editing a referenced .cube counts too (LUT mtimes live in
+  the render record). Music survives a re-render as a cheap re-mux.
+- **`--xfade 0` drafts are ungraded by design** (stream copy, no re-encode) —
+  the warning in the output is expected, not a bug.
+
 ## Music (`shot music`)
 
 Music is a separate, cheap step AFTER the montage render (a mux onto the cut's render,

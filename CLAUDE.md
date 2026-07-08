@@ -47,6 +47,11 @@ from `./shot <command> --help`**, not from memory; decision criteria from
                       # ad-hoc render without touching the manifest)
 ./shot smooth [CLIP...] # warm the interpolation cache in the background BEFORE the final `shot montage --smooth`
 ./shot locate ...       # read-only: montage timeline <-> shots (TIME/FILE/full timeline; --files = external)
+./shot grade ...        # color grading, NON-DESTRUCTIVE (baked at montage render): --analyze =
+                      # color stats; FILE + correction flags = per-select corrections;
+                      # --look/--look-lut = the cut's look; --source --input-lut = log
+                      # normalize; --preview = before/after grid (inspect via Read);
+                      # no args: grade state; grade change => render stale
 ./shot music ...        # --generate = track from Stable Audio (COSTS MONEY — gates in decision-rules "Music");
                       # TRACK... = mux onto the render -> output/cuts/<cut>-final.mp4; --probe = analysis; no args: state
 ./shot publish ...      # YT thumbnail (--frame, inspect the result via Read) / title + description
@@ -59,7 +64,7 @@ from `./shot <command> --help`**, not from memory; decision criteria from
 ./shot validate         # check manifest/summary/config files against the schema contract (pipeline/schemas/)
 ```
 
-Cuts: `sequence`/`montage`/`smooth`/`locate`/`music` accept `--cut NAME`
+Cuts: `sequence`/`montage`/`smooth`/`locate`/`grade`/`music` accept `--cut NAME`
 (default `main` = the main montage). A named cut has its own sequence, target,
 render record and music in the manifest; render -> `output/cuts/<name>.mp4`
 (with music: `<name>-final.mp4`). Version workflow: skill `/version`.
@@ -71,6 +76,9 @@ splice; by default ALL selects — variety comes from the ordering; optional
 casting against a target, which the agent asks about at the start — weaker clips
 then drop out with justification; arranging and picking are the agent's aesthetic
 decisions, lint flags variety and narrative structure).
+Grading: skill `/grade` (color stats → per-select corrections → the cut's look →
+before/after preview → acceptance gate → re-render) — optional, non-destructive,
+criteria in decision-rules.md ("Grading"); NOT part of /autopilot (taste gates).
 Music: skill `/music` (Stable Audio generation with cost gates, probe, mux onto
 the render → `output/cuts/<cut>-final.mp4`) — the natural step after an accepted
 render, also works standalone (re-mux, swapping the track).
@@ -83,10 +91,13 @@ decisions per the codified rules, auditable report in `output/autopilot-report.m
 ## Artifacts
 
 - `output/project.json` — manifest: decision state (read by `status`/`locate`; written by
-  `select`/`tag`/`pace`/`speed`/`trim`/`sequence`/`montage`/`music`/`publish`); per select
-  also `tags` (scene/shot/light/role), `range_history` and `reject` (true = out of all montages);
-  top-level `cuts` = name -> {sequence, `target_s`, last render record,
-  `music` (tracks and last mux)} — `main` is the main montage;
+  `select`/`tag`/`pace`/`speed`/`trim`/`sequence`/`montage`/`grade`/`music`/`publish`); per select
+  also `tags` (scene/shot/light/role), `range_history`, `reject` (true = out of all montages)
+  and `grade` (color corrections, baked at render);
+  top-level `cuts` = name -> {sequence, `target_s`, `grade` (the cut's look), last render
+  record (incl. the baked grade snapshot — freshness), `music` (tracks and last mux)}
+  — `main` is the main montage; top-level `sources` = per-source grading facts
+  (log profile + input LUT);
   top-level `publish` = title + description + thumbnail (deliberately without freshness
   mechanics — the thumbnail comes from the source, not the render); `schema_version`
   is written by manifest.py; the shape contract is `pipeline/schemas/project.schema.json`
@@ -99,9 +110,12 @@ decisions per the codified rules, auditable report in `output/autopilot-report.m
 - `publish-template.txt` (root, gitignored) — your channel's YT description
   boilerplate (template to copy: `publish-template.example.txt` in git); excluded
   from archiving; env `SHOT_PUBLISH_TEMPLATE` points to another file (mainly for tests)
+- `luts/` (root, in git) — .cube LUT files: log→Rec.709 conversions
+  (`shot grade --source --input-lut`) and user looks (`--look-lut`)
 - `output/<stem>/` — per video: `summary.json` (+`warnings[]`), `review.png` and
   `contact.png` (**inspect via Read**), `report.html` (for humans),
-  `segments.json`, `motion.csv` (motion-analysis cache), `frames/`
+  `segments.json`, `motion.csv` (motion-analysis cache), `color.json`
+  (color-stats cache for `shot grade --analyze`), `frames/`
 - `output/selects/` — selects for the montage: `<SOURCE>_<label>.mp4` + `_x<multiplier>` variants
 - `output/cuts/` — renders of ALL cuts (main and named, skill `/version`):
   `<name>.mp4` + `<name>-final.mp4` (with music) + `<name>.concat.txt` (input
@@ -109,8 +123,11 @@ decisions per the codified rules, auditable report in `output/autopilot-report.m
   (`cuts`). Historical `output/montage.mp4`/`final.mp4` is migrated by manifest.py (v3)
 - `output/smooth-cache/` — motion-interpolation cache for `--smooth` (full mechanics
   and usage rules: decision-rules.md "Mixed frame rates and `--smooth`")
-- `output/ui-cache/` — select poster thumbnails for `shot ui` (generated on demand,
-  mtime-cached like motion.csv — safe to delete, regenerates itself)
+- `output/ui-cache/` — select poster thumbnails for `shot ui`, incl. graded
+  before/after posters (generated on demand, mtime-cached like motion.csv —
+  safe to delete, regenerates itself)
+- `output/grade-preview/` — before/after grids from `shot grade --preview`
+  (**inspect via Read**); regenerable, safe to delete
 - `output/music/` — generated tracks (mp3; metadata in the manifest:
   `cuts.<name>.music.tracks`); film with music → `output/cuts/<name>-final.mp4`
   (the cut's `music.applied` ties it to the render — re-render = music stale)
@@ -151,7 +168,8 @@ decisions per the codified rules, auditable report in `output/autopilot-report.m
 
 **`docs/decision-rules.md` is the only source of criteria for selection (stars,
 reject/reward patterns, ranges), pacing (%/s calibration, multiplier corrections),
-montage (tag vocabulary, ordering rules, trim review) and publishing (hero frame,
+montage (tag vocabulary, ordering rules, trim review), grading (correction
+thresholds, look subtlety, log footage) and publishing (hero frame,
 thumbnail style, title/description patterns)** — the skills point there; rule
 changes ONLY in that file.
 
