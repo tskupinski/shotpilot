@@ -114,7 +114,9 @@ def analyze_motion(
 
         prev_gray = gray
         if total and (idx + 1) % 250 == 0:
-            print(f"  motion analysis: {idx + 1}/{total} frames ({100 * (idx + 1) // total}%)", file=sys.stderr)
+            # the file name keeps parallel batch scans (shot scan --jobs) readable
+            print(f"  {video_path.name}: motion analysis {idx + 1}/{total} frames "
+                  f"({100 * (idx + 1) // total}%)", file=sys.stderr)
 
     if not motions:
         raise RuntimeError(f"ffmpeg decoded no frames from {video_path}")

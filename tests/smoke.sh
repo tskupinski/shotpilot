@@ -8,7 +8,9 @@ set -eu
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 SMOKE_DIR=$(mktemp -d)
 UI_PID=""
-trap 'kill $UI_PID 2>/dev/null; rm -rf "$SMOKE_DIR"' EXIT
+# `|| true`: with UI_PID empty (the normal end state) a bare `kill` fails,
+# and under set -e that turned a successful run into exit != 0
+trap 'kill $UI_PID 2>/dev/null || true; rm -rf "$SMOKE_DIR"' EXIT
 cd "$SMOKE_DIR"
 mkdir -p input
 

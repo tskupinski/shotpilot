@@ -12,10 +12,12 @@ touch the video render.
 """
 
 import datetime
+import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import ffmpeg, paths, schema
+from . import config, ffmpeg, paths, schema
 from .cut import X264_ARGS
 
 SMOOTH_CACHE = paths.SMOOTH_CACHE
@@ -31,16 +33,31 @@ MONTAGE_X264_ARGS = [
 ]
 
 
-def draft_args() -> list[str]:
-    """Encoder for `--draft` preview renders: hardware (VideoToolbox) when the
-    build has it, otherwise the fastest reasonable software preset. Quality is
-    for order/transition review, not publishing — the final render re-encodes
-    with MONTAGE_X264_ARGS."""
-    if ffmpeg.has_encoder("h264_videotoolbox"):
-        return ["-c:v", "h264_videotoolbox", "-b:v", "50M",
-                "-pix_fmt", "yuv420p", "-movflags", "+faststart"]
-    return ["-c:v", "libx264", "-crf", "23", "-preset", "veryfast",
-            "-pix_fmt", "yuv420p", "-movflags", "+faststart"]
+def draft_encoder() -> dict:
+    """Encoder for `--draft` preview renders: hardware when a runtime test
+    encode proves one works (ffmpeg.hw_encoder — VideoToolbox on macOS, VAAPI
+    on Linux; ~2× faster than software here), otherwise the fastest reasonable
+    software preset. Quality is for order/transition review, not publishing —
+    the final render re-encodes with MONTAGE_X264_ARGS.
+
+    Shape: `pre` = global/device args (before inputs), `suffix` = filter the
+    graph output must pass through (hwupload for VAAPI), `args` = codec args,
+    `label` = what the log names it."""
+    hw = ffmpeg.hw_encoder()
+    if hw:
+        name, dev = hw
+        if name == "h264_videotoolbox":
+            return {"label": name, "pre": [], "suffix": None,
+                    "args": ["-c:v", name, "-b:v", "50M", "-pix_fmt", "yuv420p",
+                             "-movflags", "+faststart"]}
+        if name == "h264_vaapi":
+            return {"label": f"{name} ({dev})", "pre": ["-vaapi_device", dev],
+                    "suffix": "format=nv12,hwupload",
+                    "args": ["-c:v", name, "-qp", "23",
+                             "-movflags", "+faststart"]}
+    return {"label": "libx264 veryfast", "pre": [], "suffix": None,
+            "args": ["-c:v", "libx264", "-crf", "23", "-preset", "veryfast",
+                     "-pix_fmt", "yuv420p", "-movflags", "+faststart"]}
 
 # Narrative roles of a clip (tags.role) — closed vocabulary; single source:
 # pipeline/schemas/project.schema.json ($defs.tags), criteria in decision-rules.md.
@@ -67,6 +84,17 @@ def stream_fields(path: Path) -> dict:
     return data["streams"][0]
 
 
+def stream_fields_many(files: list[Path]) -> list[dict]:
+    """stream_fields on a small thread pool — ffprobe is a subprocess, and the
+    61 serial probes of a long cut's preflight cost ~9 s. Pool size respects
+    config.parallel_jobs (jobs: 1 = serial, the slow-machine knob)."""
+    jobs = min(config.parallel_jobs(min(8, os.cpu_count() or 4)), len(files))
+    if jobs < 2:
+        return [stream_fields(f) for f in files]
+    with ThreadPoolExecutor(max_workers=jobs) as ex:
+        return list(ex.map(stream_fields, files))
+
+
 def fps_value(rate: str | None) -> float:
     """'30000/1001' -> 29.97; tolerates plain numbers and empty/zero values."""
     if not rate:
@@ -83,7 +111,7 @@ def target_fps(files: list[Path], fields: list[dict] | None = None) -> str:
     `fields` = precomputed `stream_fields` per file (one ffprobe pass shared by
     the caller instead of every helper probing the same files again).
     """
-    fields = fields or [stream_fields(f) for f in files]
+    fields = fields or stream_fields_many(files)
     return max((x.get("r_frame_rate") for x in fields),
                key=fps_value, default="30000/1001")
 
@@ -96,7 +124,7 @@ def check_uniform(files: list[Path], keys: tuple[str, ...] = UNIFORM_KEYS,
     on the fly, so it skips `r_frame_rate`; the concat path (stream copy) requires
     full uniformity, because it does not recompute frames. `fields` as in `target_fps`.
     """
-    fields = fields or [stream_fields(f) for f in files]
+    fields = fields or stream_fields_many(files)
     ref = fields[0]
     mismatches = []
     for f, cur in zip(files[1:], fields[1:]):
@@ -118,7 +146,7 @@ def concat(files: list[Path], out: Path) -> Path:
                           "-c:v", "copy", "-an", "-movflags", "+faststart"], out)
 
 
-def smooth_clip(src: Path, fps: str) -> Path:
+def smooth_clip(src: Path, fps: str, duration_s: float | None = None) -> Path:
     """Version of the clip motion-interpolated to `fps` — rendered ONCE, cached.
 
     Conversion PER CLIP (one ffmpeg, a few GB) instead of `minterpolate` on many
@@ -134,12 +162,11 @@ def smooth_clip(src: Path, fps: str) -> Path:
     if (dst.exists() and dst.stat().st_mtime >= src.stat().st_mtime
             and stream_fields(dst).get("r_frame_rate") == fps):
         return dst
-    tmp = dst.with_suffix(".tmp.mp4")
-    ffmpeg.run(["-i", src,
-                "-vf", f"minterpolate=fps={fps}:mi_mode=mci:me_mode=bidir:vsbmc=1",
-                "-an", *X264_ARGS, tmp])
-    tmp.replace(dst)
-    return dst
+    return ffmpeg.run_to(
+        ["-i", src,
+         "-vf", f"minterpolate=fps={fps}:mi_mode=mci:me_mode=bidir:vsbmc=1",
+         "-an", *X264_ARGS],
+        dst, progress_total_s=duration_s, progress_label=f"smooth {src.name}")
 
 
 def clip_starts(durations: list[float], xfade: float) -> list[float]:
@@ -160,7 +187,7 @@ def clip_starts(durations: list[float], xfade: float) -> list[float]:
 
 def concat_xfade(files: list[Path], out: Path, duration: float,
                  smooth: bool = False, fields: list[dict] | None = None,
-                 encode: list[str] | None = None,
+                 encode: dict | None = None,
                  vf: list[str | None] | None = None) -> Path:
     """Splice with crossfade transitions (xfade chain, re-encode of the whole).
 
@@ -177,22 +204,27 @@ def concat_xfade(files: list[Path], out: Path, duration: float,
     minterpolate into the big graph (which allocated tens of GB → OOM). The
     montage itself then has the same memory profile as the non-smooth version.
 
-    `fields` as in `target_fps`; `encode` overrides the output encoder args
-    (default MONTAGE_X264_ARGS; `draft_args()` for preview renders).
+    `fields` as in `target_fps`; `encode` overrides the output encoder
+    (default MONTAGE_X264_ARGS; `draft_encoder()` for preview renders —
+    its `pre` args go before the inputs and its `suffix` filter caps the
+    graph, e.g. hwupload for a VAAPI encode of the software filter output).
 
     `vf` = per-clip grade chains (grade.chain_for_use, index-aligned with
     `files`; None entries render ungraded). Applied AFTER the fps/timebase
     normalization and downstream of the smooth-cache clips, so grade changes
     never invalidate output/smooth-cache/.
     """
+    enc = encode or {"pre": [], "suffix": None, "args": MONTAGE_X264_ARGS}
     if len(files) < 2:
         chain = vf[0] if vf and vf[0] else None
         if chain:  # a single graded clip: concat() is stream copy, so encode
-            return ffmpeg.run_to(["-i", files[0], "-vf", chain, "-an",
-                                  *(encode or MONTAGE_X264_ARGS)], out)
+            if enc["suffix"]:
+                chain = f"{chain},{enc['suffix']}"
+            return ffmpeg.run_to([*enc["pre"], "-i", files[0], "-vf", chain,
+                                  "-an", *enc["args"]], out)
         return concat(files, out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    fields = fields or [stream_fields(f) for f in files]
+    fields = fields or stream_fields_many(files)
     durs = [float(x["duration"]) for x in fields]
     fps = target_fps(files, fields)
 
@@ -202,7 +234,7 @@ def concat_xfade(files: list[Path], out: Path, duration: float,
         for n, i in enumerate(todo, 1):
             print(f"  smoothing {n}/{len(todo)}: {files[i].name} ...",
                   file=sys.stderr, flush=True)
-            work[i] = smooth_clip(files[i], fps)
+            work[i] = smooth_clip(files[i], fps, durs[i] or None)
 
     # unify fps + timebase of each input -> [n0], [n1], ... (no minterpolate);
     # each grade chain ends in format=yuv420p, so graded and ungraded pads
@@ -216,9 +248,16 @@ def concat_xfade(files: list[Path], out: Path, duration: float,
         parts.append(f"{src}[n{i}]xfade=transition=fade:"
                      f"duration={duration:.3f}:offset={starts[i]:.3f}[v{i}]")
     inputs = [a for f in work for a in ("-i", str(f))]
-    return ffmpeg.run_to([*inputs, "-filter_complex", ";".join(parts),
-                          "-map", f"[v{len(work) - 1}]", "-an",
-                          *(encode or MONTAGE_X264_ARGS)], out)
+    map_label = f"[v{len(work) - 1}]"
+    if enc["suffix"]:  # hardware encoders take the graph output via hwupload
+        parts.append(f"{map_label}{enc['suffix']}[vhw]")
+        map_label = "[vhw]"
+    expected = sum(durs) - (len(files) - 1) * duration
+    return ffmpeg.run_to([*enc["pre"], *inputs,
+                          "-filter_complex", ";".join(parts),
+                          "-map", map_label, "-an", *enc["args"]], out,
+                         progress_total_s=expected,
+                         progress_label="montage render")
 
 
 def resolve_use(path: str, selects: list[dict]) -> dict | None:

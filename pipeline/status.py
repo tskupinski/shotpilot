@@ -64,13 +64,36 @@ def build_status(data: dict | None = None) -> dict:
     }
 
 
-def format_status(payload: dict) -> str:
-    """The human lines of `shot status` (the payload rendered for the terminal)."""
+# Compact view: cut notes longer than this are truncated (--full shows all).
+NOTE_COMPACT_CHARS = 300
+
+
+def _note_text(text: str, full: bool) -> str:
+    if full or len(text) <= NOTE_COMPACT_CHARS:
+        return text
+    return (text[:NOTE_COMPACT_CHARS].rstrip()
+            + f" … [+{len(text) - NOTE_COMPACT_CHARS} chars — --full]")
+
+
+def format_status(payload: dict, full: bool = False) -> str:
+    """The human lines of `shot status` (the payload rendered for the terminal).
+
+    Compact by default: analyzed inputs collapse into the header (only
+    unanalyzed ones are listed — those need action) and giant cut notes are
+    truncated. `--full` restores the complete per-input list and whole notes;
+    `--json` always carries everything.
+    """
     input_dir = payload["input_dir"]
     inputs, selects, cuts = payload["inputs"], payload["selects"], payload["cuts"]
     loc = f" ({input_dir}/)" if input_dir != "input" else ""
-    lines = [f"Inputs{loc}: {payload['totals']['analyzed']}/{payload['totals']['inputs']} analyzed"]
+    warn_n = sum(1 for i in inputs if i.get("warnings"))
+    head = f"Inputs{loc}: {payload['totals']['analyzed']}/{payload['totals']['inputs']} analyzed"
+    if not full and warn_n:
+        head += f", {warn_n} with warnings (list: --full / --json)"
+    lines = [head]
     for i in inputs:
+        if not full and i["analyzed"]:
+            continue
         mark = "✓" if i["analyzed"] else "·"
         warn = f"  WARNINGS: {len(i['warnings'])}" if i.get("warnings") else ""
         lines.append(f"  {mark} {i['file']}{warn}")
@@ -100,7 +123,7 @@ def format_status(payload: dict) -> str:
         lines.append(f"{label}: {c['sequence_len']} clips in sequence ({seq_disp}), "
                      f"render: {r['state']}{draft}{reason}")
         if c["notes"]:
-            lines.append(f"  note: {c['notes']}")
+            lines.append(f"  note: {_note_text(c['notes'], full)}")
         mus = c["music"]
         if mus["tracks"] or mus["applied"]["state"] != montage.STATE_NONE:
             a = mus["applied"]

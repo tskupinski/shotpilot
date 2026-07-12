@@ -18,7 +18,7 @@ from . import schema
 
 CONFIG_PATH = Path("config.json")
 ENV_PATH = Path(".env")
-DEFAULTS = {"input_dir": "input"}
+DEFAULTS = {"input_dir": "input", "jobs": 0, "hwaccel": "auto"}
 
 
 def load_env(path: Path = ENV_PATH) -> None:
@@ -55,6 +55,22 @@ def save(cfg: dict) -> None:
 def input_dir() -> Path:
     env = os.environ.get("SHOT_INPUT_DIR")
     return Path(env) if env else Path(load()["input_dir"])
+
+
+def parallel_jobs(auto: int) -> int:
+    """Worker cap for every parallel pool (scan batch, ffprobe preflight,
+    UI thumbnails). Priority: env SHOT_JOBS > config.json "jobs" > `auto`
+    (the caller's CPU-derived default). `jobs: 1` = fully serial — the
+    downscale knob for weaker machines; 0 = auto."""
+    v = int(os.environ.get("SHOT_JOBS") or load()["jobs"] or 0)
+    return v if v > 0 else max(1, auto)
+
+
+def hwaccel_enabled() -> bool:
+    """Hardware de/encode opt-out: env SHOT_HWACCEL=off > config.json
+    "hwaccel": "off". Default "auto" = use hardware when the runtime probe
+    says it works."""
+    return (os.environ.get("SHOT_HWACCEL") or load()["hwaccel"]) != "off"
 
 
 def input_dir_source() -> str:

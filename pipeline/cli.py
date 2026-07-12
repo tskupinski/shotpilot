@@ -10,10 +10,12 @@ Conventions (all subcommands):
 import argparse
 import datetime
 import json
+import os
 import re
 import shutil
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from . import (config, contact, grade as grade_mod, manifest,
@@ -41,28 +43,32 @@ def emit(payload, as_json: bool, human: str | None = None) -> None:
         print(human)
 
 
-def _batch(files: list[Path], fn) -> tuple[list[dict], int]:
-    """Runs fn(file) per file; errors do not stop the batch."""
-    results, rc = [], 0
-    for f in files:
+def _batch(files: list[Path], fn, jobs: int = 1) -> tuple[list[dict], int]:
+    """Runs fn(file) per file; errors do not stop the batch. `jobs` > 1 runs
+    files on a thread pool (the heavy work — ffmpeg decode, OpenCV — happens
+    outside the GIL); results keep the input order either way."""
+    def one(f: Path) -> dict:
         if not f.exists():
-            results.append({"file": str(f), "error": "file does not exist"})
-            rc = 1
-            continue
+            return {"file": str(f), "error": "file does not exist"}
         try:
-            results.append(fn(f))
+            return fn(f)
         except Exception as e:  # noqa: BLE001 — the batch must survive to the end
             log(f"ERROR [{f}]: {e}")
-            results.append({"file": str(f), "error": str(e)})
-            rc = 1
-    return results, rc
+            return {"file": str(f), "error": str(e)}
+
+    if jobs > 1 and len(files) > 1:
+        with ThreadPoolExecutor(max_workers=min(jobs, len(files))) as ex:
+            results = list(ex.map(one, files))
+    else:
+        results = [one(f) for f in files]
+    return results, (1 if any("error" in r for r in results) else 0)
 
 
 # --------------------------------------------------------------- subcommands
 
 def cmd_status(args) -> int:
     payload = status_mod.build_status()
-    emit(payload, args.json, status_mod.format_status(payload))
+    emit(payload, args.json, status_mod.format_status(payload, full=args.full))
     return 0
 
 
@@ -71,9 +77,16 @@ def _append_note(entry: dict, note: str) -> str:
 
 
 def cmd_scan(args) -> int:
+    # one scan saturates ~4-6 cores (ffmpeg decode + optical flow), so the
+    # auto default is cpu/4; `--jobs` / config "jobs" / SHOT_JOBS override,
+    # jobs=1 = the old fully serial behavior (slow-machine knob)
+    jobs = args.jobs or config.parallel_jobs(min(4, (os.cpu_count() or 4) // 4))
+    if jobs > 1 and len(args.files) > 1:
+        log(f"scanning {len(args.files)} files on {min(jobs, len(args.files))} "
+            f"workers (control: --jobs N / `shot config --jobs N`)")
     results, rc = _batch(args.files, lambda f: scan_mod.scan_video(
         f, threshold=args.threshold, min_clip=args.min_clip,
-        margin=args.margin, do_cut=args.cut, force=args.force))
+        margin=args.margin, do_cut=args.cut, force=args.force), jobs=jobs)
     human = "\n".join(
         f"{r['video']['path']}: {r['stats']['n_segments']} seg., "
         f"{r['stats']['kept_pct']}% kept, threshold {r['params']['threshold']}"
@@ -517,7 +530,7 @@ def cmd_montage(args) -> int:
         return 0
     # xfade re-encodes and normalizes fps on the fly -> skip r_frame_rate in the check;
     # concat (--xfade 0) is stream copy, so it requires full uniformity (fps too).
-    fields = [montage_mod.stream_fields(f) for f in files]
+    fields = montage_mod.stream_fields_many(files)
     check_keys = (montage_mod.UNIFORM_KEYS if xfade == 0
                   else tuple(k for k in montage_mod.UNIFORM_KEYS if k != "r_frame_rate"))
     mismatches = montage_mod.check_uniform(files, check_keys, fields)
@@ -543,7 +556,7 @@ def cmd_montage(args) -> int:
         log("--draft skipped: --xfade 0 is stream copy already (no re-encode)")
     grade_applied = None
     if xfade > 0:
-        encode = montage_mod.draft_args() if draft else None
+        encode = montage_mod.draft_encoder() if draft else None
         graded = f", grade: {snapshot['look'] or 'corrections only'}" if snapshot else ""
         if smooth:
             log(f"Splicing {len(files)} clips with crossfade {xfade:g} s + motion "
@@ -551,7 +564,7 @@ def cmd_montage(args) -> int:
                 f"with a different fps — MUCH slower, expect hours for long footage) ...")
         elif draft:
             log(f"Splicing {len(files)} clips with crossfade {xfade:g} s{graded} -> {out} "
-                f"(DRAFT encode: {encode[1]} — preview quality, re-render without "
+                f"(DRAFT encode: {encode['label']} — preview quality, re-render without "
                 f"--draft before music/publish) ...")
         else:
             log(f"Splicing {len(files)} clips with crossfade {xfade:g} s{graded} -> {out} "
@@ -628,14 +641,15 @@ def cmd_smooth(args) -> int:
         for m in missing:
             log(f"missing file: {m}")
         return 1
-    fields = [montage_mod.stream_fields(f) for f in files]
+    fields = montage_mod.stream_fields_many(files)
     fps = args.fps or montage_mod.target_fps(files, fields)
-    todo = [f for f, x in zip(files, fields)
+    todo = [(f, x) for f, x in zip(files, fields)
             if x.get("r_frame_rate") != fps]
     smoothed = []
-    for n, f in enumerate(todo, 1):
+    for n, (f, x) in enumerate(todo, 1):
         log(f"  smoothing {n}/{len(todo)}: {f.name} ...")
-        smoothed.append(str(montage_mod.smooth_clip(f, fps)))
+        smoothed.append(str(montage_mod.smooth_clip(
+            f, fps, float(x.get("duration", 0)) or None)))
     human = (f"smooth cache ready: {len(smoothed)} clips to fps {fps} "
              f"({len(files) - len(todo)} already on target)")
     emit({"target_fps": fps, "smoothed": smoothed,
@@ -1261,18 +1275,32 @@ def cmd_config(args) -> int:
     """Shows/changes configuration (config.json). Without flags: show only."""
     if args.reset:
         config.save(dict(config.DEFAULTS))
-    elif args.input_dir is not None:
-        if not args.input_dir.is_dir():
-            log(f"directory does not exist: {args.input_dir}")
-            return 1
+    else:
         cfg = config.load()
-        cfg["input_dir"] = str(args.input_dir)
-        config.save(cfg)
-    payload = {"config": config.load(),
+        if args.input_dir is not None:
+            if not args.input_dir.is_dir():
+                log(f"directory does not exist: {args.input_dir}")
+                return 1
+            cfg["input_dir"] = str(args.input_dir)
+        if args.jobs is not None:
+            if args.jobs < 0:
+                log("--jobs cannot be negative (0 = auto)")
+                return 1
+            cfg["jobs"] = args.jobs
+        if args.hwaccel:
+            cfg["hwaccel"] = args.hwaccel
+        if cfg != config.load():
+            config.save(cfg)
+    cfg = config.load()
+    payload = {"config": cfg,
                "input_dir": str(config.input_dir()),
-               "input_dir_source": config.input_dir_source()}
+               "input_dir_source": config.input_dir_source(),
+               "jobs": cfg["jobs"], "hwaccel": cfg["hwaccel"]}
     emit(payload, args.json,
-         f"input_dir: {payload['input_dir']}  [{payload['input_dir_source']}]")
+         f"input_dir: {payload['input_dir']}  [{payload['input_dir_source']}]\n"
+         f"jobs: {payload['jobs'] or 'auto'} (worker cap for scan batch / "
+         f"probes / UI thumbnails; 1 = serial)\n"
+         f"hwaccel: {payload['hwaccel']}")
     return 0
 
 
@@ -1334,7 +1362,10 @@ def build_parser() -> argparse.ArgumentParser:
         sp.set_defaults(fn=fn)
         return sp
 
-    add("status", "project dashboard: inputs, selects, variants", cmd_status)
+    sp = add("status", "project dashboard: inputs, selects, variants", cmd_status)
+    sp.add_argument("--full", action="store_true",
+                    help="full view: every input listed, complete cut notes "
+                         "(default view collapses them; --json always has everything)")
 
     sp = add("scan", "smoothness analysis (batch); segment cutting only with --cut", cmd_scan)
     sp.add_argument("files", nargs="+", type=Path)
@@ -1343,6 +1374,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--min-clip", type=float, default=2.5)
     sp.add_argument("--margin", type=float, default=0.3)
     sp.add_argument("--force", action="store_true", help="ignore the motion.csv cache")
+    sp.add_argument("--jobs", type=int, default=0, metavar="N",
+                    help="parallel scans in a batch (default: auto from CPU "
+                         "count, capped by `shot config --jobs`; 1 = serial)")
 
     sp = add("sheet", "contact sheet: frame grid every N s (batch; scan does this itself)", cmd_sheet)
     sp.add_argument("files", nargs="+", type=Path)
@@ -1569,9 +1603,17 @@ def build_parser() -> argparse.ArgumentParser:
     sp = add("restore", "restore project state from an archive (inverse of archive)", cmd_restore)
     sp.add_argument("archive", help="archive directory (full path or a name inside archive/)")
 
-    sp = add("config", "show/change configuration (input folder)", cmd_config)
+    sp = add("config", "show/change configuration (input folder, parallelism, hw accel)",
+             cmd_config)
     sp.add_argument("--input-dir", type=Path,
                     help="folder with source recordings, e.g. an SD card (default: input/)")
+    sp.add_argument("--jobs", type=int, metavar="N",
+                    help="worker cap for all parallel pools (scan batch, ffprobe "
+                         "preflight, UI thumbnails); 0 = auto from CPU count, "
+                         "1 = fully serial for weak machines")
+    sp.add_argument("--hwaccel", choices=["auto", "off"],
+                    help="hardware de/encode (VAAPI/VideoToolbox): auto = use "
+                         "when the runtime probe passes, off = software only")
     sp.add_argument("--reset", action="store_true", help="restore default settings")
 
     add("validate", "check manifest/summary/config files against the schema "

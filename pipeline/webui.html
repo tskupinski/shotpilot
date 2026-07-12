@@ -109,6 +109,8 @@ main { padding: 16px 20px 60px; }
 .chip.role { color: var(--gold); border-color: #4a3c1e; }
 .chip.var { font-family: var(--mono); }
 .chip.untagged { border-style: dashed; color: var(--faint); }
+.chip.click { cursor: pointer; }
+.chip.click:hover { border-color: var(--dim); color: var(--text); }
 .card .note { color: var(--dim); font-size: 12px; margin-top: 6px; }
 .card .facts { display: flex; gap: 10px; margin-top: 6px; color: var(--faint);
                font-family: var(--mono); font-size: 11px; }
@@ -269,12 +271,23 @@ function ribbon(sel) {
     h("i", { style: `left:${l}%;width:${w}%` }));
 }
 
-function tagChips(sel) {
+/* clicking a chip filters the selects gallery by that tag */
+function filterByTag(v) {
+  state.q = v.toLowerCase();
+  if ((location.hash || "#selects") !== "#selects") location.hash = "#selects";
+  else render();
+}
+
+function tagChips(sel, clickable) {
   const t = sel.tags;
   if (!t) return [h("span", { class: "chip untagged" }, "untagged")];
+  const chip = (klass, text, val) => clickable
+    ? h("span", { class: klass + " click", title: `filter: ${val}`,
+        onclick: e => { e.stopPropagation(); filterByTag(val); } }, text)
+    : h("span", { class: klass }, text);
   const out = ["scene", "shot", "light"].filter(k => t[k])
-    .map(k => h("span", { class: "chip" }, t[k]));
-  if (t.role) out.push(h("span", { class: "chip role" }, "+" + t.role));
+    .map(k => chip("chip", t[k], t[k]));
+  if (t.role) out.push(chip("chip role", "+" + t.role, t.role));
   return out;
 }
 
@@ -340,7 +353,7 @@ function card(s, list, at) {
       h("div", { class: "top" }, h("span", { class: "label" }, s.label), stars(s.stars),
         noteBtn(stem(s.file))),
       h("div", { class: "src" }, `${s.source_stem}  [${s.range[0]}–${s.range[1]}s]`),
-      h("div", { class: "chips" }, tagChips(s),
+      h("div", { class: "chips" }, tagChips(s, true),
         variants.map(v => h("span", { class: "chip var" }, "x" + v))),
       s.notes ? h("div", { class: "note" }, s.notes) : null,
       h("div", { class: "facts" },
@@ -398,7 +411,7 @@ function viewCuts(main) {
           h("td", { class: "t" }, fmtS(e.duration_s)),
           h("td", { class: "t" }, "@ " + fmtS(at)),
           h("td", {}, stars(e.stars)),
-          h("td", {}, h("div", { class: "chips" }, tagChips({ tags: e.tags })))));
+          h("td", {}, h("div", { class: "chips" }, tagChips({ tags: e.tags }, true)))));
         at += e.duration_s || 0;
       }
       cut.append(h("table", {},
@@ -672,6 +685,7 @@ async function load() {
     $("#main").replaceChildren(h("div", { class: "msg" }, "Cannot load /api/status — " + e.message));
     return;
   }
+  const y = scrollY; // auto-refresh must not yank the gallery from under the user
   const t = DATA.totals;
   $("#totals").textContent =
     `${t.analyzed}/${t.inputs} analyzed · ${t.selects} selects (${fmtS(t.selects_total_s)}) · ${t.tagged} tagged` +
@@ -681,7 +695,24 @@ async function load() {
   $("#n-cuts").textContent = Object.values(DATA.cuts).filter(c => c.sequence_len).length;
   $("#n-inputs").textContent = t.inputs;
   render();
+  scrollTo(0, y);
 }
+
+/* auto-refresh: poll a cheap change signal; reload the payload only when the
+   project actually changed and no preview is open (a reload would replace
+   the DOM under an open overlay) */
+let VERSION = null;
+async function pollVersion() {
+  let v;
+  try { v = JSON.stringify(await (await fetch("/api/version")).json()); }
+  catch { return; } // server briefly unreachable — keep the current view
+  if (VERSION === null) { VERSION = v; return; }
+  if (v !== VERSION && !$("#overlay").classList.contains("open")) {
+    VERSION = v;
+    load();
+  }
+}
+setInterval(pollVersion, 4000);
 
 $("#refresh").addEventListener("click", load);
 $("#overlay").addEventListener("click", e => { if (e.target.id === "overlay") closePreview(); });

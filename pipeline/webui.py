@@ -32,9 +32,11 @@ MIME = {".mp4": "video/mp4", ".mov": "video/mp4", ".m4v": "video/mp4",
         ".txt": "text/plain; charset=utf-8", ".csv": "text/csv",
         ".mp3": "audio/mpeg", ".wav": "audio/wav"}
 
-# first gallery load requests dozens of thumbnails at once — do not launch
-# that many concurrent 4K decodes
-_THUMB_SEM = threading.BoundedSemaphore(2)
+# first gallery load requests dozens of thumbnails at once — cap the
+# concurrent 4K decodes; scales with the CPU, `shot config --jobs 1`
+# (or SHOT_JOBS=1) forces one at a time on weak machines
+_THUMB_SEM = threading.BoundedSemaphore(
+    config.parallel_jobs(max(2, min(6, (os.cpu_count() or 4) // 3))))
 
 
 # ------------------------------------------------------------- pure helpers
@@ -100,6 +102,18 @@ def _graded_chain(entry: dict, data: dict) -> str | None:
     cut_grade = manifest.get_cut(data, "main").get("grade")
     return grade.chain_for_use(entry["file"], data["selects"],
                                cut_grade, data.get("sources"))
+
+
+def project_version() -> dict:
+    """Cheap change signal for the page's auto-refresh: manifest mtime plus
+    the summary files' count and newest mtime (a scan writes summaries
+    without touching the manifest)."""
+    m = manifest.MANIFEST_PATH
+    summaries = list(paths.OUTPUT.glob("*/summary.json"))
+    return {"manifest": m.stat().st_mtime if m.exists() else 0,
+            "summaries": len(summaries),
+            "summaries_mtime": max((p.stat().st_mtime for p in summaries),
+                                   default=0)}
 
 
 def build_ui_payload() -> dict:
@@ -253,6 +267,9 @@ class Handler(BaseHTTPRequestHandler):
             self._send_bytes(page, MIME[".html"], head, "no-cache")
         elif path == "/api/status":
             body = json.dumps(build_ui_payload(), ensure_ascii=False).encode()
+            self._send_bytes(body, MIME[".json"], head, "no-store")
+        elif path == "/api/version":
+            body = json.dumps(project_version()).encode()
             self._send_bytes(body, MIME[".json"], head, "no-store")
         elif path.startswith("/thumb/input/"):
             stem = urllib.parse.unquote(

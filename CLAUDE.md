@@ -28,7 +28,9 @@ from `./shot <command> --help`**, not from memory; decision criteria from
 
 ```sh
 ./shot status           # project dashboard: inputs, selects, sequence, render, music, publishing
-./shot scan FILE...     # smoothness analysis + contact.png in one pass (mtime cache)
+                      # (compact: analyzed inputs collapsed, long cut notes truncated — --full/--json for everything)
+./shot scan FILE...     # smoothness analysis + contact.png in one pass (mtime cache);
+                      # a batch runs files in parallel (--jobs N; 1 = serial)
 ./shot sheet FILE...    # contact sheet alone (scan already makes one — don't run after scan)
 ./shot frames FILE T... # 1280px evaluation frames -> output/<stem>/frames/
 ./shot jitter FILE      # settles jitter vs smooth maneuver within a range
@@ -60,7 +62,9 @@ from `./shot <command> --help`**, not from memory; decision criteria from
                       # ★/tags/notes, clip + source preview), cuts, inputs; localhost,
                       # blocks until Ctrl-C (--port N, 0 = auto; --no-open)
 ./shot archive NAME     # output/ -> archive/<date>_<name>/ + clean start; shot restore = the reverse
-./shot config           # input folder (--input-dir, e.g. an SD card); no flags shows the state
+./shot config           # machine config: --input-dir (e.g. an SD card), --jobs N (worker cap
+                      # for scan batch/probes/UI thumbnails; 1 = serial on weak machines),
+                      # --hwaccel auto|off (VAAPI/VideoToolbox); no flags shows the state
 ./shot validate         # check manifest/summary/config files against the schema contract (pipeline/schemas/)
 ```
 

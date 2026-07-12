@@ -5,6 +5,8 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "input_dir": {"type": "string", "minLength": 1}
+    "input_dir": {"type": "string", "minLength": 1},
+    "jobs": {"type": "integer", "minimum": 0},
+    "hwaccel": {"enum": ["auto", "off"]}
   }
 }

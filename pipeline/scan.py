@@ -110,5 +110,5 @@ def scan_video(
     schema.check(summary, "summary", str(out_dir / "summary.json"))
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n")
     for w in summary["warnings"]:
-        print(f"WARNING: {w}", file=sys.stderr)
+        print(f"WARNING [{video.name}]: {w}", file=sys.stderr)
     return summary
