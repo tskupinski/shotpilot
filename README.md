@@ -15,9 +15,13 @@ is a normal command-line tool with `--json` output.
 
 ## Example
 
-A film made end-to-end with this pipeline — selection, pacing, montage with
+Films made end-to-end with this pipeline — selection, pacing, montage with
 crossfades and the YouTube publishing assets were all driven by the agent
 through the CLI:
+
+[![Pieniny — Three Crowns & the Dunajec — Cinematic 4K Drone Film](https://img.youtube.com/vi/p_btmjYpoTY/maxresdefault.jpg)](https://youtu.be/p_btmjYpoTY)
+
+*[Pieniny — Three Crowns & the Dunajec — Cinematic 4K Drone Film](https://youtu.be/p_btmjYpoTY)*
 
 [![Pruszków, WKD Komorów — 4K DJI Mini 3 Drone Video](https://img.youtube.com/vi/jn8GxruFrVQ/maxresdefault.jpg)](https://www.youtube.com/watch?v=jn8GxruFrVQ)
 
