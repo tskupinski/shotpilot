@@ -158,6 +158,9 @@ the agent workflows in `.claude/skills/` all point there.
   boilerplate; copy `publish-template.example.txt` to start.
 - `CLAUDE.local.md` (gitignored) — facts about *your* footage and preferences
   for the agent, loaded alongside `CLAUDE.md`.
+- `luts/` (in git, ships empty) — drop your own `.cube` files here: log→Rec.709
+  conversions for `shot grade --source --input-lut` and creative looks for
+  `--look-lut`; `shot grade --list-looks` lists what it finds.
 
 ## Test
 

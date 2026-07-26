@@ -10,5 +10,7 @@ publish-template.txt
 CLAUDE.local.md
 __pycache__/
 .claude/scheduled_tasks.lock
+.claude/settings.local.json
 .DS_Store
 .gstack/
+promo/

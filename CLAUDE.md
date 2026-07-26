@@ -114,8 +114,9 @@ decisions per the codified rules, auditable report in `output/autopilot-report.m
 - `publish-template.txt` (root, gitignored) — your channel's YT description
   boilerplate (template to copy: `publish-template.example.txt` in git); excluded
   from archiving; env `SHOT_PUBLISH_TEMPLATE` points to another file (mainly for tests)
-- `luts/` (root, in git) — .cube LUT files: log→Rec.709 conversions
-  (`shot grade --source --input-lut`) and user looks (`--look-lut`)
+- `luts/` (root, in git, ships empty) — .cube LUT files you drop in yourself:
+  log→Rec.709 conversions (`shot grade --source --input-lut`) and user looks
+  (`--look-lut`); `shot grade --list-looks` shows what it finds there
 - `output/<stem>/` — per video: `summary.json` (+`warnings[]`), `review.png` and
   `contact.png` (**inspect via Read**), `report.html` (for humans),
   `segments.json`, `motion.csv` (motion-analysis cache), `color.json`
