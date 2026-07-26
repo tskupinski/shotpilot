@@ -1,3 +1,0 @@
-# Cloudflare Pages redirects: keep one canonical host so the canonical tag,
-# og:url and the sitemap all agree.
-https://www.shotpilot.video/* https://shotpilot.video/:splat 301
