@@ -3,16 +3,115 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Shotpilot — agent-first pipeline from drone footage to an edited film</title>
-<meta name="description" content="An open-source, agent-first pipeline from raw drone footage to a published film: motion analysis, aesthetic review, selects, pacing, crossfade montage, AI music and YouTube publishing assets. Built for Claude Code, works by hand too.">
-<meta property="og:title" content="Shotpilot — you fly, your agent edits">
-<meta property="og:description" content="Open-source pipeline from drone footage to an edited film: OpenCV motion analysis, selects, pacing, crossfade montage, AI music, YouTube assets. Agent-first, CLI underneath.">
+<title>Shotpilot - drone footage to edited film, run by an AI agent</title>
+<meta name="description" content="Open-source pipeline from raw drone footage to a finished film: motion analysis, selects, pacing, crossfade montage, AI music and YouTube assets.">
+<link rel="canonical" href="https://shotpilot.video/">
+<meta name="theme-color" content="#171D26">
+
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="Shotpilot">
+<meta property="og:url" content="https://shotpilot.video/">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Shotpilot - you fly, your agent edits">
+<meta property="og:description" content="Open-source pipeline from drone footage to an edited film: OpenCV motion analysis, selects, pacing, crossfade montage, AI music, YouTube assets.">
+<meta property="og:image" content="https://shotpilot.video/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Shotpilot: an editing timeline of aerial drone shots with star ratings and pace readouts.">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Shotpilot - you fly, your agent edits">
+<meta name="twitter:description" content="Open-source pipeline from drone footage to an edited film: OpenCV motion analysis, selects, pacing, crossfade montage, AI music, YouTube assets.">
+<meta name="twitter:image" content="https://shotpilot.video/og-image.jpg">
+<meta name="twitter:image:alt" content="Shotpilot: an editing timeline of aerial drone shots with star ratings and pace readouts.">
+
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23171D26'/%3E%3Crect x='5' y='13' width='13' height='8' rx='1.5' fill='%236FC3D6'/%3E%3Crect x='15' y='11' width='12' height='8' rx='1.5' fill='%23E9A13B'/%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preload" href="fonts/bricolage-grotesque-normal-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/instrument-sans-normal-latin.woff2" as="font" type="font/woff2" crossorigin>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Shotpilot",
+  "url": "https://shotpilot.video/",
+  "applicationCategory": "MultimediaApplication",
+  "applicationSubCategory": "Video editing",
+  "operatingSystem": "macOS, Linux",
+  "license": "https://opensource.org/licenses/MIT",
+  "codeRepository": "https://github.com/tskupinski/shotpilot",
+  "programmingLanguage": "Python",
+  "description": "Open-source, agent-first pipeline from raw drone footage to a published film: OpenCV motion-smoothness analysis, aesthetic review, selects, pacing, crossfade montage, color grading, AI-generated music and YouTube publishing assets.",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+}
+</script>
 <style>
+  /* self-hosted variable subsets (OFL) - no third-party font requests */
+  @font-face {
+    font-family: 'Bricolage Grotesque';
+    font-style: normal;
+    font-weight: 400 800;
+    font-display: swap;
+    src: url(fonts/bricolage-grotesque-normal-latin-ext.woff2) format('woff2-variations');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  }
+  @font-face {
+    font-family: 'Bricolage Grotesque';
+    font-style: normal;
+    font-weight: 400 800;
+    font-display: swap;
+    src: url(fonts/bricolage-grotesque-normal-latin.woff2) format('woff2-variations');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  @font-face {
+    font-family: 'Instrument Sans';
+    font-style: italic;
+    font-weight: 400 600;
+    font-display: swap;
+    src: url(fonts/instrument-sans-italic-latin-ext.woff2) format('woff2-variations');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  }
+  @font-face {
+    font-family: 'Instrument Sans';
+    font-style: italic;
+    font-weight: 400 600;
+    font-display: swap;
+    src: url(fonts/instrument-sans-italic-latin.woff2) format('woff2-variations');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  @font-face {
+    font-family: 'Instrument Sans';
+    font-style: normal;
+    font-weight: 400 600;
+    font-display: swap;
+    src: url(fonts/instrument-sans-normal-latin-ext.woff2) format('woff2-variations');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  }
+  @font-face {
+    font-family: 'Instrument Sans';
+    font-style: normal;
+    font-weight: 400 600;
+    font-display: swap;
+    src: url(fonts/instrument-sans-normal-latin.woff2) format('woff2-variations');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+  @font-face {
+    font-family: 'Spline Sans Mono';
+    font-style: normal;
+    font-weight: 400 600;
+    font-display: swap;
+    src: url(fonts/spline-sans-mono-normal-latin-ext.woff2) format('woff2-variations');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  }
+  @font-face {
+    font-family: 'Spline Sans Mono';
+    font-style: normal;
+    font-weight: 400 600;
+    font-display: swap;
+    src: url(fonts/spline-sans-mono-normal-latin.woff2) format('woff2-variations');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+
   :root {
     --bg: #171D26;
     --panel: #1F2733;
@@ -201,7 +300,7 @@
     html { scroll-behavior: auto; }
   }
 
-  /* footage gradients — graded stand-ins for real shots */
+  /* footage gradients - graded stand-ins for real shots */
   .f-lake    { background: linear-gradient(178deg, #A9C6D4 0%, #6E97AA 48%, #2E5261 100%); }
   .f-ridge   { background: linear-gradient(172deg, #E3BC85 0%, #B37F4A 55%, #4E3B2D 100%); }
   .f-forest  { background: linear-gradient(184deg, #9FB49B 0%, #5C7A5C 50%, #2F4633 100%); }
@@ -420,7 +519,7 @@
     <h1>You fly. <em>Your agent edits.</em></h1>
     <p class="lede">Shotpilot is an open-source pipeline from raw drone footage to a published
     film: <strong>motion-smoothness analysis, aesthetic review, selects, pacing, crossfade montage,
-    AI-generated music and YouTube publishing assets</strong> — designed to be operated by an AI
+    AI-generated music and YouTube publishing assets</strong> - designed to be operated by an AI
     coding agent, with a plain CLI underneath.</p>
     <div class="hero-ctas">
       <a class="btn btn-primary" href="https://github.com/tskupinski/shotpilot">View on GitHub</a>
@@ -431,7 +530,7 @@
     <div class="timeline" role="img" aria-label="A stylized editing timeline: five clips with star ratings, pace readouts and crossfade transitions, a smoothness curve above them and a playhead moving across.">
       <div class="tl-head">
         <span class="cut">cut: <b>main</b> · 5 selects · target 3:20</span>
-        <span>smoothness ▁▂▆▇▇ · pace %/s</span>
+        <span>smoothness curve · pace %/s</span>
       </div>
       <svg class="tl-curve" viewBox="0 0 1000 46" preserveAspectRatio="none" aria-hidden="true">
         <polyline points="0,34 60,30 120,33 180,20 260,16 340,19 420,10 500,13 560,26 640,22 720,25 800,12 880,15 940,18 1000,14"
@@ -471,40 +570,40 @@
       <div class="prose">
         <p><strong>You drop in footage, say what you want and approve decisions.</strong>
         The agent runs the CLI, looks at the generated contact sheets and review plots,
-        applies the codified decision rules — and asks only when a call is genuinely yours to make.</p>
+        applies the codified decision rules - and asks only when a call is genuinely yours to make.</p>
         <p>Built for <a href="https://claude.com/claude-code">Claude Code</a>: skills like
         <code>/shot-review</code>, <code>/montage</code> and <code>/autopilot</code> walk the agent
         through selection, pacing and editing. Every decision lands in a persistent manifest
-        (<code>output/project.json</code>) — the source of truth across sessions.</p>
+        (<code>output/project.json</code>) - the source of truth across sessions.</p>
         <p>Approving is visual, not archaeological: <code>./shot ui</code> opens a local, read-only
-        web view of the agent's work — the selects gallery with stars, tags and decision notes,
+        web view of the agent's work - the selects gallery with stars, tags and decision notes,
         the cut sequences and every source file, with the clips and the original 4K footage
         playable right in the browser.</p>
         <p>And everything also works by hand: <code>./shot</code> is a normal command-line tool with
         <code>--json</code> output, native batching and honest exit codes. No agent required.</p>
       </div>
       <div class="terminal">
-        <div class="term-bar"><i></i><i></i><i></i><span>claude code — shotpilot</span></div>
+        <div class="term-bar"><i></i><i></i><i></i><span>claude code - shotpilot</span></div>
         <div class="term-body">
 <p><span class="you">you ›</span> review the new footage</p>
 <p><span class="agent">agent ›</span> Scanning 14 files from the card…
 <span class="cmd">./shot scan input/DJI_0284.MP4 … --json</span></p>
 <p><span class="agent">agent ›</span> DJI_0301 is smooth throughout. The lake crossing
-at 00:42–01:18 is the strongest range — golden light,
+at 00:42–01:18 is the strongest range - golden light,
 clean horizon. Cutting a select, <span class="you">★★★</span>.
 <span class="cmd">./shot select DJI_0301.MP4 42 78 --label lake --stars 3</span></p>
 <p><span class="you">you ›</span> isn’t the ridge shot too slow?</p>
-<p><span class="agent">agent ›</span> 1.4 %/s on screen — slow. A ×2.5 variant keeps
+<p><span class="agent">agent ›</span> 1.4 %/s on screen - slow. A ×2.5 variant keeps
 the drift readable without feeling rushed.
 <span class="cmd">./shot speed output/selects/DJI_0294_ridge.mp4 2.5</span>
-<span class="dim">Kept the dusk shot at ×1 — it stays slow, that’s the mood.</span></p>
+<span class="dim">Kept the dusk shot at ×1 - it stays slow, that’s the mood.</span></p>
         </div>
       </div>
     </div>
     <figure class="ui-shot">
       <img src="shot-ui-selects.jpg" loading="lazy" width="1600" height="1000"
-           alt="shot ui — read-only web view: selects gallery with thumbnails, stars, tags and decision notes">
-      <figcaption><code>./shot ui</code> — the agent&rsquo;s selects with stars, tags and decision notes, ready to review in a local web view</figcaption>
+           alt="shot ui - read-only web view: selects gallery with thumbnails, stars, tags and decision notes">
+      <figcaption><code>./shot ui</code> - the agent&rsquo;s selects with stars, tags and decision notes, ready to review in a local web view</figcaption>
     </figure>
   </div>
 </section>
@@ -513,14 +612,14 @@ the drift readable without feeling rushed.
   <div class="wrap">
     <div class="eyebrow"><span class="tc">00:00:02</span> PIPELINE</div>
     <h2>From SD card to published film, in seven stages.</h2>
-    <p class="section-lede">Each stage leaves auditable artifacts — review images, JSON summaries,
-    a manifest entry — so the human, or the next agent session, can see exactly why every cut happened.</p>
+    <p class="section-lede">Each stage leaves auditable artifacts - review images, JSON summaries,
+    a manifest entry - so the human, or the next agent session, can see exactly why every cut happened.</p>
     <div class="steps">
       <div class="step"><h3>Scan</h3><p>Per-frame camera transform via OpenCV feature tracking; smoothness scores the <em>acceleration</em> of motion, so a fast uniform flyover reads as smooth and a jerk as a spike.</p><code>./shot scan input/*.MP4</code></div>
-      <div class="step"><h3>Review</h3><p>Contact sheets and KEPT/CUT review plots for every file — the agent judges composition, light and subject, and recommends ranges.</p><code>./shot frames FILE 12 40 88</code></div>
+      <div class="step"><h3>Review</h3><p>Contact sheets and KEPT/CUT review plots for every file - the agent judges composition, light and subject, and recommends ranges.</p><code>./shot frames FILE 12 40 88</code></div>
       <div class="step"><h3>Select</h3><p>Chosen ranges are re-encoded into uniform clips with star ratings and decision notes; batch plans resume after interruptions.</p><code>./shot select FILE 42 78 --stars 3</code></div>
       <div class="step"><h3>Pace</h3><p>Screen pace measured as % of frame width per second, with speed-up recommendations. Mechanical numbers; the mood call stays with the agent.</p><code>./shot pace --selects</code></div>
-      <div class="step"><h3>Montage</h3><p>Sequence ordering with a variety-and-narrative lint, then crossfade splicing — with optional motion interpolation for mixed frame rates.</p><code>./shot montage --smooth</code></div>
+      <div class="step"><h3>Montage</h3><p>Sequence ordering with a variety-and-narrative lint, then crossfade splicing - with optional motion interpolation for mixed frame rates.</p><code>./shot montage --smooth</code></div>
       <div class="step"><h3>Music</h3><p>AI-generated track (Stable Audio) probed for duration, loudness and energy curve, then muxed onto the render. Paid API calls sit behind explicit cost gates.</p><code>./shot music --generate</code></div>
       <div class="step"><h3>Publish</h3><p>YouTube thumbnail from a hero frame, plus title and description built from your channel template.</p><code>./shot publish --frame FILE T</code></div>
     </div>
@@ -534,14 +633,14 @@ the drift readable without feeling rushed.
     <p class="section-lede">Selection, pacing, montage with crossfades and the YouTube publishing
     assets were all driven by the agent through the CLI.</p>
     <a class="film" href="https://youtu.be/p_btmjYpoTY">
-      <img src="https://img.youtube.com/vi/p_btmjYpoTY/maxresdefault.jpg" alt="Still from “Pieniny — Three Crowns &amp; the Dunajec” — an aerial 4K drone shot" loading="lazy">
+      <img width="1280" height="720" src="https://img.youtube.com/vi/p_btmjYpoTY/maxresdefault.jpg" alt="Still from “Pieniny - Three Crowns &amp; the Dunajec” - an aerial 4K drone shot" loading="lazy">
       <span class="play"><span><svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="#E9EDF2"/></svg></span></span>
-      <span class="caption">Pieniny — Three Crowns &amp; the Dunajec — Cinematic 4K · watch on YouTube ↗</span>
+      <span class="caption">Pieniny - Three Crowns &amp; the Dunajec - Cinematic 4K · watch on YouTube ↗</span>
     </a>
     <a class="film" href="https://www.youtube.com/watch?v=jn8GxruFrVQ">
-      <img src="https://img.youtube.com/vi/jn8GxruFrVQ/maxresdefault.jpg" alt="Still from “Pruszków, WKD Komorów” — an aerial 4K drone shot" loading="lazy">
+      <img width="1280" height="720" src="https://img.youtube.com/vi/jn8GxruFrVQ/maxresdefault.jpg" alt="Still from “Pruszków, WKD Komorów” - an aerial 4K drone shot" loading="lazy">
       <span class="play"><span><svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="#E9EDF2"/></svg></span></span>
-      <span class="caption">Pruszków, WKD Komorów — 4K DJI Mini 3 · watch on YouTube ↗</span>
+      <span class="caption">Pruszków, WKD Komorów - 4K DJI Mini 3 · watch on YouTube ↗</span>
     </a>
   </div>
 </section>
@@ -554,7 +653,7 @@ the drift readable without feeling rushed.
     <span class="inline-code">--json</span>: result on stdout, logs on stderr, exit ≠ 0 on error.</p>
     <div class="cli-grid">
       <div class="cli-row"><code>./shot status</code><span>project dashboard: inputs, selects, sequence, render, music, publishing</span></div>
-      <div class="cli-row"><code>./shot ui</code><span>the same state as a read-only web UI — selects gallery, cuts, inputs, video preview</span></div>
+      <div class="cli-row"><code>./shot ui</code><span>the same state as a read-only web UI - selects gallery, cuts, inputs, video preview</span></div>
       <div class="cli-row"><code>./shot scan</code><span>smoothness analysis + contact sheet in one pass (mtime cache)</span></div>
       <div class="cli-row"><code>./shot select</code><span>cut a select from the source, with stars, notes and resumable batch plans</span></div>
       <div class="cli-row"><code>./shot pace</code><span>screen pace (%/s) + speed-up recommendation; finds dull stretches to trim</span></div>
@@ -568,7 +667,7 @@ the drift readable without feeling rushed.
     <p class="cli-note">Plus <span class="inline-code">sheet</span>, <span class="inline-code">frames</span>,
     <span class="inline-code">jitter</span>, <span class="inline-code">speed</span>, <span class="inline-code">tag</span>,
     <span class="inline-code">trim</span>, <span class="inline-code">smooth</span>, <span class="inline-code">config</span>
-    and <span class="inline-code">validate</span> — full flag semantics live in
+    and <span class="inline-code">validate</span> - full flag semantics live in
     <span class="inline-code">./shot &lt;command&gt; --help</span> and the README.</p>
   </div>
 </section>
@@ -580,7 +679,7 @@ the drift readable without feeling rushed.
     <div class="warn-cards">
       <div class="warn"><h3>EARLY DAYS</h3><p>Built iteratively with an AI agent around <strong>one person’s real workflow</strong>, not engineered as a product. Expect rough edges, missing features and breaking changes.</p></div>
       <div class="warn"><h3>RESOURCE-HUNGRY</h3><p>Selects and montage renders re-encode 4K with x264 (~4× real time per clip); <strong>--smooth</strong> interpolation needs ~6 GB RAM per clip on top. A full SD card keeps every core busy for a while.</p></div>
-      <div class="warn"><h3>BACK UP YOUR FOOTAGE</h3><p>The pipeline never modifies originals — selects are copies, cleanup is archiving — but this is young software driven by an agent. <strong>Keep your own backup. Use at your own risk.</strong></p></div>
+      <div class="warn"><h3>BACK UP YOUR FOOTAGE</h3><p>The pipeline never modifies originals - selects are copies, cleanup is archiving - but this is young software driven by an agent. <strong>Keep your own backup. Use at your own risk.</strong></p></div>
     </div>
   </div>
 </section>
@@ -594,12 +693,12 @@ the drift readable without feeling rushed.
         <li><strong>Python ≥ 3.10</strong> with a venv (the <span class="inline-code">./shot</span> wrapper expects <span class="inline-code">.venv/</span>)</li>
         <li><strong>ffmpeg / ffprobe</strong> on PATH</li>
         <li><strong>macOS or Linux</strong> (no Windows support)</li>
-        <li><strong>Optional:</strong> a Stability AI key — only for music generation. Everything else is free and offline.</li>
+        <li><strong>Optional:</strong> a Stability AI key - only for music generation. Everything else is free and offline.</li>
       </ul>
       <pre class="code"><span class="c"># once</span>
 python3 -m venv .venv &amp;&amp; .venv/bin/pip install -r requirements.txt
 
-<span class="c"># drop footage into input/ — or point at the SD card</span>
+<span class="c"># drop footage into input/ - or point at the SD card</span>
 ./shot config --input-dir /Volumes/SDCARD
 
 <span class="c"># then open Claude Code in the repo and say:</span>

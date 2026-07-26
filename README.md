@@ -6,6 +6,8 @@ shots into uniform clips, splices them into a montage with crossfade transitions
 (ffmpeg), adds AI-generated music (Stable Audio) and prepares YouTube publishing
 assets (thumbnail + title + description).
 
+Project page: **[shotpilot.video](https://shotpilot.video)** (source in `site/`).
+
 **Agent-first** means the primary operator is an AI coding agent (built for
 [Claude Code](https://claude.com/claude-code)): the human drops in footage, says
 what they want and approves decisions; the agent runs the CLI, looks at the
