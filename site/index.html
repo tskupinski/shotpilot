@@ -28,6 +28,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23171D26'/%3E%3Crect x='5' y='13' width='13' height='8' rx='1.5' fill='%236FC3D6'/%3E%3Crect x='15' y='11' width='12' height='8' rx='1.5' fill='%23E9A13B'/%3E%3C/svg%3E">
 <link rel="preload" href="fonts/bricolage-grotesque-normal-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/instrument-sans-normal-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/spline-sans-mono-normal-latin.woff2" as="font" type="font/woff2" crossorigin>
 
 <script type="application/ld+json">
 {
@@ -119,7 +120,7 @@
     --line: #313D4D;
     --ink: #E9EDF2;
     --muted: #94A1B2;
-    --faint: #6B7889;
+    --faint: #7E8B9C;
     --amber: #E9A13B;
     --amber-dim: #B57C2E;
     --cyan: #6FC3D6;
@@ -130,7 +131,8 @@
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
-  html { scroll-behavior: smooth; }
+  /* :focus-within scoping avoids Chromium's flaky smooth-scroll on initial #fragment loads */
+  html:focus-within { scroll-behavior: smooth; }
 
   body {
     background: var(--bg);
@@ -267,8 +269,11 @@
     display: flex; align-items: baseline; gap: 8px;
     color: #DDE4EB; white-space: nowrap; overflow: hidden;
   }
+  .clip .name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .clip .stars { color: var(--amber); letter-spacing: 0.1em; }
-  .clip .pace { color: var(--cyan); margin-left: auto; }
+  .clip .pace { color: var(--cyan); }
+  /* the next clip overlaps 14px of this one - keep the pace readout clear of it */
+  .clip:not(:last-of-type) .meta { padding-right: 24px; }
   .clip .speed {
     position: absolute; top: 7px; right: 8px;
     font-family: var(--mono); font-size: 11px; font-weight: 600;
@@ -297,7 +302,7 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .playhead { animation: none; }
-    html { scroll-behavior: auto; }
+    html:focus-within { scroll-behavior: auto; }
   }
 
   /* footage gradients - graded stand-ins for real shots */
@@ -331,6 +336,7 @@
     font-family: var(--mono); font-size: 0.86em;
     background: var(--panel-2); border: 1px solid var(--line);
     padding: 1px 6px; border-radius: 5px; color: var(--ink);
+    white-space: nowrap;
   }
 
   .terminal {
@@ -491,6 +497,8 @@
     .steps { grid-template-columns: 1fr; }
     .nav-links a:not(.btn-gh) { display: none; }
     .clip .meta { font-size: 9.5px; gap: 5px; }
+    .clip .pace { display: none; }
+    .tl-ruler span:not(:first-child):not(:last-child) { display: none; }
     .clip { height: 92px; }
     .xfade { top: 30px; }
     section { padding-top: 72px; }
@@ -508,6 +516,7 @@
       <a href="#pipeline">Pipeline</a>
       <a href="#example">Example</a>
       <a href="#cli">CLI</a>
+      <a href="#quickstart">Quickstart</a>
       <a class="btn-gh" href="https://github.com/tskupinski/shotpilot">GitHub</a>
     </div>
   </div>
@@ -542,19 +551,19 @@
         <span>00:00</span><span>00:40</span><span>01:20</span><span>02:00</span><span>02:40</span><span>03:20</span>
       </div>
       <div class="tl-track" aria-hidden="true">
-        <div class="clip" style="--w:2.2"><div class="footage f-lake"></div>
-          <div class="meta"><span>0301_lake</span><span class="stars">★★★</span><span class="pace">1.6 %/s</span></div></div>
+        <div class="clip" style="--w:2.0"><div class="footage f-lake"></div>
+          <div class="meta"><span class="name">0301_lake</span><span class="stars">★★★</span><span class="pace">1.6 %/s</span></div></div>
         <div class="clip" style="--w:1.6"><div class="footage f-ridge"></div><span class="speed">×2.5</span>
-          <div class="meta"><span>0294_ridge</span><span class="stars">★★</span><span class="pace">3.8 %/s</span></div></div>
+          <div class="meta"><span class="name">0294_ridge</span><span class="stars">★★</span><span class="pace">3.8 %/s</span></div></div>
         <div class="clip" style="--w:1.9"><div class="footage f-forest"></div>
-          <div class="meta"><span>0288_forest</span><span class="stars">★★</span><span class="pace">2.1 %/s</span></div></div>
-        <div class="clip" style="--w:1.4"><div class="footage f-village"></div>
-          <div class="meta"><span>0312_dusk</span><span class="stars">★★★</span><span class="pace">1.4 %/s</span></div></div>
+          <div class="meta"><span class="name">0288_forest</span><span class="stars">★★</span><span class="pace">2.1 %/s</span></div></div>
+        <div class="clip" style="--w:1.6"><div class="footage f-village"></div>
+          <div class="meta"><span class="name">0312_dusk</span><span class="stars">★★★</span><span class="pace">1.4 %/s</span></div></div>
         <div class="clip" style="--w:1.7"><div class="footage f-sky"></div>
-          <div class="meta"><span>0307_finale</span><span class="stars">★★★</span><span class="pace">1.9 %/s</span></div></div>
-        <span class="xfade" style="left: 25.4%"></span>
-        <span class="xfade" style="left: 43.6%"></span>
-        <span class="xfade" style="left: 65.2%"></span>
+          <div class="meta"><span class="name">0307_finale</span><span class="stars">★★★</span><span class="pace">1.9 %/s</span></div></div>
+        <span class="xfade" style="left: 23.1%"></span>
+        <span class="xfade" style="left: 41.3%"></span>
+        <span class="xfade" style="left: 62.9%"></span>
         <span class="xfade" style="left: 80.9%"></span>
       </div>
       <div class="playhead" aria-hidden="true"></div>
@@ -593,7 +602,7 @@ at 00:42–01:18 is the strongest range - golden light,
 clean horizon. Cutting a select, <span class="you">★★★</span>.
 <span class="cmd">./shot select DJI_0301.MP4 42 78 --label lake --stars 3</span></p>
 <p><span class="you">you ›</span> isn’t the ridge shot too slow?</p>
-<p><span class="agent">agent ›</span> 1.4 %/s on screen - slow. A ×2.5 variant keeps
+<p><span class="agent">agent ›</span> 1.5 %/s on screen - slow. A ×2.5 variant keeps
 the drift readable without feeling rushed.
 <span class="cmd">./shot speed output/selects/DJI_0294_ridge.mp4 2.5</span>
 <span class="dim">Kept the dusk shot at ×1 - it stays slow, that’s the mood.</span></p>
@@ -659,6 +668,7 @@ the drift readable without feeling rushed.
       <div class="cli-row"><code>./shot pace</code><span>screen pace (%/s) + speed-up recommendation; finds dull stretches to trim</span></div>
       <div class="cli-row"><code>./shot sequence</code><span>montage order + lint for variety and narrative structure</span></div>
       <div class="cli-row"><code>./shot montage</code><span>crossfade splice; stream-copy drafts; <span class="inline-code">--smooth</span> interpolation</span></div>
+      <div class="cli-row"><code>./shot grade</code><span>non-destructive color grading: per-select corrections, a per-cut look, baked at render</span></div>
       <div class="cli-row"><code>./shot music</code><span>generate (Stable Audio), probe, and mux a track onto the render</span></div>
       <div class="cli-row"><code>./shot publish</code><span>YouTube thumbnail, title and description</span></div>
       <div class="cli-row"><code>./shot locate</code><span>read-only mapping: montage timeline ↔ source shots</span></div>
@@ -678,7 +688,7 @@ the drift readable without feeling rushed.
     <h2>Young software. We’d rather you knew.</h2>
     <div class="warn-cards">
       <div class="warn"><h3>EARLY DAYS</h3><p>Built iteratively with an AI agent around <strong>one person’s real workflow</strong>, not engineered as a product. Expect rough edges, missing features and breaking changes.</p></div>
-      <div class="warn"><h3>RESOURCE-HUNGRY</h3><p>Selects and montage renders re-encode 4K with x264 (~4× real time per clip); <strong>--smooth</strong> interpolation needs ~6 GB RAM per clip on top. A full SD card keeps every core busy for a while.</p></div>
+      <div class="warn"><h3>RESOURCE-HUNGRY</h3><p>Selects and montage renders re-encode 4K with x264 (~4× real time per clip); <span class="inline-code">--smooth</span> interpolation needs ~6 GB RAM per clip on top. A full SD card keeps every core busy for a while.</p></div>
       <div class="warn"><h3>BACK UP YOUR FOOTAGE</h3><p>The pipeline never modifies originals - selects are copies, cleanup is archiving - but this is young software driven by an agent. <strong>Keep your own backup. Use at your own risk.</strong></p></div>
     </div>
   </div>
