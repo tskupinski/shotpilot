@@ -117,8 +117,10 @@ exit != 0 on error). Full flag semantics: `./shot <command> --help`.
 | `./shot grade` | color grading, non-destructive (baked at montage render): `--analyze` color stats, per-select corrections, the cut's look (`--look` preset / `--look-lut` .cube), log normalize (`--source --input-lut`), `--preview` before/after grid |
 | `./shot music` | `--generate` (Stable Audio, paid), `--probe` (loudness/energy analysis), `TRACK...` = mux onto the render |
 | `./shot publish` | YT thumbnail (`--frame`), title + description (`--title --description-file`) |
-| `./shot archive NAME` | move the whole `output/` state to `archive/<date>_<name>/` + clean start; `shot restore` reverses it |
-| `./shot config` | input folder configuration |
+| `./shot archive NAME` | move the whole `output/` state to `archive/<date>_<name>/` + clean start |
+| `./shot restore ARCHIVE` | bring an archived project back into `output/` (reverses `archive`) |
+| `./shot config` | machine configuration: input folder, worker cap (`--jobs`), hardware acceleration (`--hwaccel`) |
+| `./shot validate` | check the manifest, summaries and config against the JSON Schema contract (`pipeline/schemas/`) |
 
 Alternative versions of the same footage: `sequence`/`montage`/`smooth`/`locate`/
 `music` accept `--cut NAME` — each cut keeps its own sequence, target, render and
@@ -176,4 +178,9 @@ the agent workflows in `.claude/skills/` all point there.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE).
+
+The landing page in `site/` embeds Latin subsets of three open-source font
+families (Bricolage Grotesque, Instrument Sans, Spline Sans Mono), which are
+licensed separately under the SIL Open Font License 1.1 - see
+[`site/fonts/OFL.txt`](site/fonts/OFL.txt).
