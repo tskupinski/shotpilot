@@ -1,7 +1,7 @@
 # Decision rules — selection, pacing and montage
 
-The single source of truth for review criteria. The skills (`/shot-review`, `/pace-review`,
-`/montage`, `/autopilot`) point here — rule changes are made in THIS file,
+The single source of truth for review criteria. The skills (`shot-review`, `pace-review`,
+`montage`, `autopilot`) point here — rule changes are made in THIS file,
 not in the skills.
 
 ## Selection (aesthetic review)
@@ -70,7 +70,7 @@ once; kebab-case, one value per dimension (the shot's dominant trait):
   a seam between acts) · `final` (wide/waning closing shot). Assign only
   to clips meant to play the role: `breather`/`transition` are traits of the clip (can
   be assigned already at selection), `hook`/`final` are positional decisions — they are
-  assigned by `/montage` while ordering (and in casting mode — by the casting).
+  assigned by the `montage` skill while ordering (and in casting mode — by the casting).
   The tag replaces the old free-text notes ("breather", "montage transition")
   — it's what lint uses to check structure.
 
@@ -82,7 +82,7 @@ with ORDERING (acts, separators, pace contrast), not by cutting clips;
 (spacing with separators), not rejections. No target is set.
 The `hook`/`final` roles are assigned while ordering.
 
-**At the start of `/montage` ask the user**: montage all selects
+**At the start of the `montage` skill ask the user**: montage all selects
 (default), or propose cutting the cast for a shorter film? Casting runs
 ONLY when the user chooses cutting. Then stars stop being a solo
 rating — casting judges the contribution to a FILM of a given length, and good clips
@@ -201,7 +201,7 @@ Normalizing upward is deliberate: it is smooth on 60 Hz screens (a 24 fps target
 would catch 3:2 pulldown) and it preserves the real frames of the highest-fps
 clips, interpolating only the rest.
 
-**Cache mechanics** (`output/smooth-cache/`; this is the ONLY full description — CLAUDE.md
+**Cache mechanics** (`output/smooth-cache/`; this is the ONLY full description — AGENTS.md
 and the skills point here): smoothing goes ONE clip at a time (a single
 minterpolate process ≈ 6 GB RAM — parallelism risks OOM); the cache is per source
 clip (by filename), so changing the sequence ORDER doesn't invalidate it — warming
@@ -326,7 +326,7 @@ after the user accepts the proposals**.
   (`--frame SOURCE --at SEC`, not from a select/render); find the time via `contact.png`
   and refine with `shot frames`.
 - **Legibility at small preview size decides** — the agent LOOKS at the rendered
-  thumbnail via Read and judges: does the text blend into the background, did the frame's
+  thumbnail image and judges: does the text blend into the background, did the frame's
   subject survive the crop/grading, does the whole read at thumbnail size. Render
   candidates with `--out output/publish/cand-N.jpg` (no manifest entry),
   the final one on the default out.

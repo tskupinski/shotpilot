@@ -5,12 +5,12 @@ description: >
   cutting selects, pacing and speed variants — no questions to the user, with a
   decision report at the end. Use when the user says "autopilot", "do everything
   yourself", "full auto", "process the new footage without asking", "run the whole
-  process". Montage is OUT OF SCOPE — that's what the `/montage` skill is for.
+  process". Montage is OUT OF SCOPE — that's what the montage skill is for.
 ---
 
 # Autopilot — the full process without user input
 
-The flow is like `/shot-review` + `/pace-review`, but **you make the decisions
+The flow is like `shot-review` + `pace-review`, but **you make the decisions
 yourself** — strictly per `docs/decision-rules.md` (read it BEFORE starting; it's the
 only source of selection and pacing criteria). Instead of acceptance stops you write
 an auditable report. The user gave consent up front by invoking this skill.
@@ -20,7 +20,7 @@ an auditable report. The user gave consent up front by invoking this skill.
 - In scope: `shot scan` (also makes contact sheets) → aesthetic review → `shot select`
   + `shot tag` → `shot pace` → `shot speed` → report.
 - OUT of scope (requires a human): `shot archive`/`shot restore`, deleting anything,
-  montage (the `/montage` skill — interactive), changes to the pipeline code.
+  montage (the `montage` skill — interactive), changes to the pipeline code.
 - **Escalate instead of guessing** (stop and ask) when: scan/render errors,
   `tracking_failed_pct > 20` on many files, footage of a completely different kind
   than before (e.g. night, interiors, people up close — reference point: the

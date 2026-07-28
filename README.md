@@ -8,12 +8,15 @@ assets (thumbnail + title + description).
 
 Project page: **[shotpilot.video](https://shotpilot.video)** (source in `site/`).
 
-**Agent-first** means the primary operator is an AI coding agent (built for
-[Claude Code](https://claude.com/claude-code)): the human drops in footage, says
-what they want and approves decisions; the agent runs the CLI, looks at the
-generated review images, applies the codified decision rules and asks when
-a call is genuinely the human's to make. Everything also works by hand — the CLI
-is a normal command-line tool with `--json` output.
+**Agent-first** means the primary operator is an AI coding agent: the human
+drops in footage, says what they want and approves decisions; the agent runs
+the CLI, looks at the generated review images, applies the codified decision
+rules and asks when a call is genuinely the human's to make. Built for
+[Claude Code](https://claude.com/claude-code) and works with any agent that
+reads `AGENTS.md` and the open Agent Skills format (e.g.
+[Codex CLI](https://github.com/openai/codex) via `.codex/skills`,
+[OpenCode](https://opencode.ai) via its Claude Code compatibility). Everything
+also works by hand — the CLI is a normal command-line tool with `--json` output.
 
 ## Example
 
@@ -63,10 +66,11 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt   # once
 1. Drop your footage into `input/` — or point at another folder (e.g. an SD
    card): `./shot config --input-dir /Volumes/SDCARD` (persistent, `--reset`
    restores the default), or one-off: `SHOT_INPUT_DIR=/Volumes/SDCARD ./shot status`.
-2. Open Claude Code in the repo and say e.g. "review the new footage"
-   (skill `/shot-review`), "check the pacing" (`/pace-review`), "edit the film"
-   (`/montage`), or "autopilot" (`/autopilot` — selection + pacing with no
-   questions asked, with a decision report in `output/autopilot-report.md`).
+2. Open your coding agent (Claude Code, Codex CLI, OpenCode, ...) in the repo
+   and say e.g. "review the new footage" (skill `shot-review`), "check the
+   pacing" (`pace-review`), "edit the film" (`montage`), or "autopilot"
+   (`autopilot` — selection + pacing with no questions asked, with a decision
+   report in `output/autopilot-report.md`).
 3. Results: `output/selects/` (clips for the montage), `output/cuts/` (rendered
    films), `output/<name>/report.html` (smoothness reports).
 4. To review the agent's work visually, run `./shot ui` — a local, read-only
@@ -124,7 +128,7 @@ exit != 0 on error). Full flag semantics: `./shot <command> --help`.
 
 Alternative versions of the same footage: `sequence`/`montage`/`smooth`/`locate`/
 `music` accept `--cut NAME` — each cut keeps its own sequence, target, render and
-music in the manifest (skill `/version`).
+music in the manifest (skill `version`).
 
 ## How the analysis works
 
@@ -161,7 +165,7 @@ the agent workflows in `.claude/skills/` all point there.
 - `publish-template.txt` (gitignored) — your channel's YouTube description
   boilerplate; copy `publish-template.example.txt` to start.
 - `CLAUDE.local.md` (gitignored) — facts about *your* footage and preferences
-  for the agent, loaded alongside `CLAUDE.md`.
+  for the agent, loaded alongside `AGENTS.md`.
 - `luts/` (in git, ships empty) — drop your own `.cube` files here: log→Rec.709
   conversions for `shot grade --source --input-lut` and creative looks for
   `--look-lut`; `shot grade --list-looks` lists what it finds.

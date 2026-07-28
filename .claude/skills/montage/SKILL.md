@@ -4,7 +4,7 @@ description: >
   Montage of a film from the selects: filling in content tags, trim review
   (cutting dull stretches), ordering per the variety and storytelling rules,
   splice with crossfade transitions (music after the render is accepted — the
-  /music skill). By default montages ALL selects; optional
+  music skill). By default montages ALL selects; optional
   casting (cutting the cast down to a target duration) — only when the user chooses it.
   Use when the user says "assemble it", "splice the film", "montage", "arrange the order",
   "trim the selects", or after a finished pace review as the natural next step.
@@ -24,7 +24,7 @@ The sequence in the manifest (`cuts.main.sequence`) is the state; the render is 
 ```
 
 Read `docs/decision-rules.md`. If the selects lack measured pace
-or variant decisions — `/pace-review` first.
+or variant decisions — the `pace-review` skill first.
 
 **Ask the user for the mode** (the "Casting" section of the rules):
 
@@ -41,8 +41,8 @@ or variant decisions — `/pace-review` first.
 
 ## Step 1: Tagging the gaps
 
-Selects with `tags: null` (`[no tags]` in the status): look at the source's
-`contact.png` (Read) — you'll locate the select's range by the timestamps on the frames;
+Selects with `tags: null` (`[no tags]` in the status): view the source's
+`contact.png` image — you'll locate the select's range by the timestamps on the frames;
 refine ambiguous ones via `shot frames`. Then:
 
 ```sh
@@ -159,7 +159,7 @@ exists only in the chat and is lost between sessions.
 
 Propose music only once the user **has watched the render and accepted the
 ordering/trims**. The whole workflow (generation with cost gates, probe,
-mux, iteration): the `/music` skill; rules: the "Music" section in decision-rules.md.
+mux, iteration): the `music` skill; rules: the "Music" section in decision-rules.md.
 
 ## Iteration
 
@@ -168,8 +168,8 @@ cheap, encourage experiments; the full render with transitions only after the
 ordering is accepted. After `shot trim` the status will show `render: stale` —
 another `shot montage` fixes it (and after it another music mux, if there was one).
 When the user refers to a time in the film ("what's at 2:15") — map
-timecode↔shot via `/locate`. Separate cuts (short/long/a variant alongside the
-main montage) — the `/version` skill (`--cut NAME` on sequence/montage/
+timecode↔shot via the `locate` skill. Separate cuts (short/long/a variant alongside the
+main montage) — the `version` skill (`--cut NAME` on sequence/montage/
 locate/music; the main montage = the `main` cut). Film done (render accepted,
-music optional) → YouTube assets: `/publish`. Done working on the footage →
-`/project-archive`.
+music optional) → YouTube assets: the `publish` skill. Done working on the footage →
+the `project-archive` skill.

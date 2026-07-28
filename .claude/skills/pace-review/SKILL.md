@@ -43,7 +43,7 @@ Show: clip | measured pace | mechanical recommendation | your proposal
 
 - The render is done without motion analysis, audio is dropped; don't overwrite/delete originals.
 - `shot speed` refuses on `_x*` files — always render from the original.
-- Renders over > 30 s of footage in total — in the background (re-encode cost: CLAUDE.md).
+- Renders over > 30 s of footage in total — in the background (re-encode cost: AGENTS.md).
 - After the render: ffprobe (duration ≈ original/multiplier) and `./shot status` for the user.
 - Persist "don't speed up" decisions in a manifest note:
 
@@ -51,4 +51,4 @@ Show: clip | measured pace | mechanical recommendation | your proposal
   ./shot tag output/selects/CLIP.mp4 --append-note "moody, stays slow"
   ```
 
-Once pacing is closed, the natural next step is the montage — propose `/montage`.
+Once pacing is closed, the natural next step is the montage — propose the `montage` skill.

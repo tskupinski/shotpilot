@@ -26,14 +26,14 @@ machinery as the main montage (= cut `main`): `shot sequence/montage/locate/musi
 2. **Proposal and approval**: show the cut's table (no | clip (variant) |
    duration | tags | role) + the predicted film length and the selection
    rationale. **Wait for the user's approval before cutting clips and
-   rendering** — as in `/montage`.
+   rendering** — as in the `montage` skill.
 3. **Sequence + lint:**
    ```sh
    ./shot sequence --cut short --target 300        # the cut's target (optional)
    ./shot sequence --cut short CLIP1 CLIP2 ...     # order (the files actually spliced)
    ./shot sequence --cut short                     # preview + lint
    ```
-   Lint runs per cut — comment on warnings as in `/montage`. Persist the
+   Lint runs per cut — comment on warnings as in the `montage` skill. Persist the
    version's goal, the selection rationale and accepted warnings in the cut's
    note: `shot sequence --cut short --note "..."` (visible in
    `shot status`/`shot sequence`).
@@ -55,14 +55,14 @@ machinery as the main montage (= cut `main`): `shot sequence/montage/locate/musi
    ./shot music --cut short TRACK.mp3    # mux -> output/cuts/short-final.mp4
    ```
    A cut's music has its own freshness and record in the manifest —
-   workflow: `/music` (with `--cut` on every command).
+   workflow: the `music` skill (with `--cut` on every command).
 
 ## Notes
 
 - `shot status` shows all cuts with separate render and music state.
 - **Large files:** every cut is a full 4K render — `output/` balloons; once
   cuts are closed out, suggest cleaning up unneeded renders or
-  `/project-archive`.
+  the `project-archive` skill.
 - Renders of > 30 s of footage go in the background; `--smooth` = many times
   slower.
 - Ad-hoc render without a manifest entry (one-off export): still

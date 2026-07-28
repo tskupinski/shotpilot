@@ -5,7 +5,7 @@ description: >
   title and description in English (specific part + channel boilerplate from
   a template). Use when the user says "thumbnail", "cover image", "title and
   description", "YT description", "publish", "I'm uploading to YouTube" —
-  the natural step after /montage, when the film (with or without music)
+  the natural step after the montage, when the film (with or without music)
   is ready.
 ---
 
@@ -36,7 +36,7 @@ do not derive it from the manifest tags or from the footage facts in
 CLAUDE.local.md (rules: "Publishing (`shot publish`)").
 
 Per the rules: sources of ★4–5 selects, preference for `golden-hour`/`fog`,
-clean area for the text. View the sources' `contact.png` (Read), cut 2–3
+clean area for the text. View the sources' `contact.png` images, cut 2–3
 candidate frames to be sure about composition:
 
 ```sh
@@ -50,7 +50,7 @@ Render candidate thumbnails (custom `--out` = no manifest entry):
              [--subtitle "CINEMATIC 4K"] [--pos top] --out output/publish/cand-1.jpg
 ```
 
-**View each candidate via Read** and judge legibility per the rules (text vs
+**View each candidate image** and judge legibility per the rules (text vs
 background, subject after the crop, whether it reads at small preview size).
 Show the user the candidates with a recommendation.
 
@@ -69,7 +69,7 @@ approval round.**
 ./shot publish --frame input/SOURCE.MP4 --at 12.4 --text "DOLOMITES"   # default out = manifest entry
 ```
 
-Write the specific part of the description with Write to a temporary file
+Write the specific part of the description to a temporary file
 (e.g. `/tmp/publish-specific.txt`), then:
 
 ```sh
@@ -84,6 +84,6 @@ invocation.
 
 Give the user the three things for YT Studio: `output/publish/thumbnail.jpg`,
 the title (from the manifest) and `output/publish/description.txt`. Clean up
-the `cand-*.jpg` candidates. Done working on the footage → suggest
-`/project-archive` (the thumbnail and description go into the archive together
-with `output/`).
+the `cand-*.jpg` candidates. Done working on the footage → suggest the
+`project-archive` skill (the thumbnail and description go into the archive
+together with `output/`).

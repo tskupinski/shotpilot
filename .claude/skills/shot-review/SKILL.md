@@ -39,7 +39,7 @@ Read `stats` and `warnings`; verify suspicious cases with `shot jitter` /
 
 ## Step 2: Aesthetic review
 
-- Look at `output/<stem>/contact.png` (Read) — a grid of frames every 2 s captioned
+- View the `output/<stem>/contact.png` image — a grid of frames every 2 s captioned
   `t=...s`; triage per the criteria from the rules. Timestamps from the grid are
   candidates for range boundaries and for `shot frames` arguments.
 - Ambiguous moments: `./shot frames FILE T1 T2 ...` and look at the 1280px frames.
@@ -64,10 +64,10 @@ in the rules). **Stop and wait for the user's acceptance.**
   In verdicts also point out candidates for narrative roles (e.g. "hook candidate").
 - For clips with an obvious narrative trait, assign the role right after cutting:
   `./shot tag CLIP --role breather|transition` (vocabulary: the "Content tags" section
-  of the rules; `hook`/`final` are assigned only by `/montage` while ordering).
-- Renders over > 30 s of footage in total — in the background (re-encode cost: CLAUDE.md).
+  of the rules; `hook`/`final` are assigned only by the `montage` skill while ordering).
+- Renders over > 30 s of footage in total — in the background (re-encode cost: AGENTS.md).
 - After cutting: `./shot status` — show the user the state of the selects.
 
 ## Step 5 (optional): Pacing
 
-Propose a pace review — the procedure is in the `/pace-review` skill (`shot pace --selects`).
+Propose a pace review — the procedure is in the `pace-review` skill (`shot pace --selects`).

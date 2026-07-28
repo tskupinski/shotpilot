@@ -5,7 +5,7 @@ description: >
   (probe — duration, loudness, energy curve) and mux onto the montage render
   (-> output/cuts/<cut>-final.mp4). Use when the user says "add music", "lay in
   music", "generate a track", "swap the music", "re-mux after a re-render",
-  or after an accepted /montage render as the natural next step.
+  or after an accepted montage render as the natural next step.
   Also works without the full montage workflow (e.g. just a re-mux).
 ---
 
@@ -68,6 +68,6 @@ the most dynamic clips are). After the mux, suggest the user listen to the
   `stale`) — a re-mux takes seconds, generated tracks stay in `output/music/`.
 - A re-render of the SAME length does not require new music; changing the
   film's length = new generations (real cost) — warn the user.
-- Music for a named cut (skill `/version`): every command with `--cut NAME`
+- Music for a named cut (skill `version`): every command with `--cut NAME`
   (generation reads the render length of THAT cut; mux ->
   `output/cuts/<name>-final.mp4`).

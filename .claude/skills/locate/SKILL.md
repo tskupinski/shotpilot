@@ -64,6 +64,6 @@ file name.
 - Report results to the user by **source file** name (`DJI_XXXX.MP4`) — that
   is their language during review; add the label for orientation.
 
-Works naturally with `/montage` (review by timecode) — when the user points
-at a time and wants a change (trim/swap/order), locate the shot with this
-tool, and do the edit itself via `/montage` (`shot trim`/`shot sequence`).
+Works naturally with the `montage` skill (review by timecode) — when the user
+points at a time and wants a change (trim/swap/order), locate the shot with this
+tool, and do the edit itself via the `montage` skill (`shot trim`/`shot sequence`).

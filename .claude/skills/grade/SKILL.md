@@ -65,7 +65,7 @@ Pick 1–2 candidates that match the film's light tags (golden-hour footage →
 ./shot grade --preview --json       # -> output/grade-preview/<cut>.png
 ```
 
-Inspect the PNG via Read (RAW vs GRADED rows — the render bakes the identical
+Inspect the PNG image (RAW vs GRADED rows — the render bakes the identical
 chain), iterate on corrections/look, then show the human the preview path and
 the proposal table. In `shot ui` every graded select gets a before/after pair.
 **Wait for acceptance before re-rendering** — the render is the costly step.
@@ -73,7 +73,7 @@ the proposal table. In `shot ui` every graded select gets a before/after pair.
 ## Step 6 (after acceptance): Render and verify
 
 ```sh
-./shot montage        # in the background for >30 s of footage (CLAUDE.md re-encode rule)
+./shot montage        # in the background for >30 s of footage (AGENTS.md re-encode rule)
 ```
 
 - The grade change already made the render stale — `shot montage` re-renders
