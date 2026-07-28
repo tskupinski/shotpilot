@@ -6,6 +6,13 @@ shots into uniform clips, splices them into a montage with crossfade transitions
 (ffmpeg), adds AI-generated music (Stable Audio) and prepares YouTube publishing
 assets (thumbnail + title + description).
 
+> **Bring your own agent and LLM.** Shotpilot is not a standalone app and has
+> no built-in AI: you drive it through an AI coding agent you already use, such
+> as [Claude Code](https://claude.com/claude-code),
+> [Codex CLI](https://github.com/openai/codex) or [OpenCode](https://opencode.ai),
+> with whatever LLM subscription or API costs that agent comes with. Without an
+> agent it is a regular command-line tool you operate by hand.
+
 Project page: **[shotpilot.video](https://shotpilot.video)** (source in `site/`).
 
 **Agent-first** means the primary operator is an AI coding agent: the human
@@ -34,6 +41,10 @@ through the CLI:
 
 ## Heads up before you start
 
+- **You need to bring your own AI agent.** There is no bundled model, no API
+  key to paste, no "AI inside": the intelligence comes from the coding agent
+  you run in this repo (Claude Code, Codex CLI, OpenCode, ...), and you pay
+  for that agent's LLM usage yourself, separately from this tool.
 - **Early days.** This is the beginning of the project, and it has been largely
   vibe-coded — built iteratively with an AI agent around one person's real
   workflow, not engineered as a product. Expect rough edges, missing features
@@ -51,6 +62,9 @@ through the CLI:
 
 ## Requirements
 
+- **An AI coding agent** (Claude Code, Codex CLI, OpenCode, ...) with its own
+  LLM access - the intended way to use shotpilot; strictly optional only if
+  you want to drive the CLI by hand
 - **Python ≥ 3.10** and a venv (the `./shot` wrapper expects `.venv/`)
 - **ffmpeg / ffprobe** on `PATH`
 - macOS or Linux (the manifest locking uses `fcntl`; no Windows support)
