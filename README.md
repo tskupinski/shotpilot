@@ -15,6 +15,7 @@ assets (thumbnail + title + description).
 > agent it is a regular command-line tool you operate by hand.
 
 Project page: **[shotpilot.video](https://shotpilot.video)** (source in `site/`).
+Created by [Tomek Skupinski](https://tomekskupinski.com).
 
 **Agent-first** means the primary operator is an AI coding agent: the human
 drops in footage, says what they want and approves decisions; the agent runs
