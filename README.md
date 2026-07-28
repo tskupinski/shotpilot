@@ -6,6 +6,7 @@ shots into uniform clips, splices them into a montage with crossfade transitions
 (ffmpeg), adds AI-generated music (Stable Audio) and prepares YouTube publishing
 assets (thumbnail + title + description).
 
+> [!IMPORTANT]
 > **Bring your own agent and LLM.** Shotpilot is not a standalone app and has
 > no built-in AI: you drive it through an AI coding agent you already use, such
 > as [Claude Code](https://claude.com/claude-code),
